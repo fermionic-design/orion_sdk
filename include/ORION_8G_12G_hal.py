@@ -623,7 +623,7 @@ class ORION_8G_12G_hal:
         if (RX_BIAS_MODE == 'LOW'):
             if self.version == 'v2':
                 self.set_rx_cmb_icurr(0, ant_sel=ant_sel)
-                self.set_rx_cmb_qcurr(2, ant_sel=ant_sel)
+                self.set_rx_cmb_qcurr(0, ant_sel=ant_sel)
             else:
                 self.set_rx_cmb_icurr(0, ant_sel=ant_sel)
                 self.set_rx_cmb_qcurr(0, ant_sel=ant_sel)

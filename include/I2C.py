@@ -1,0 +1,55 @@
+import time
+import sys
+sys.path.append('../include')
+
+import i2cdriver
+from find_com_port import *
+
+class I2C:
+    def __init__(self, force_com=None, force_dev_addr=None):
+        print(force_dev_addr)
+        # print(f'Opening I2C')
+        self.val = [i for i in range(255)]
+        if force_dev_addr is None:
+            self.dev_addr = 0x00
+        else:
+            self.dev_addr = force_dev_addr
+        
+        if force_com is None:
+            self.com = "COM8"
+        else:
+            self.com = force_com
+        self.dev = i2cdriver.I2CDriver(self.com)
+    
+    def close(self):
+        # print(f'Closing I2C')
+        self.dev.ser.close()
+        
+    def write(self, addr, data):
+        # print(f'setting csr[{hex(addr)}] = {hex(data)}')
+        self.dev.start(self.dev_addr,0)
+        self.dev.write([addr, data])
+        self.dev.stop()
+        time.sleep(0.01)
+        
+    def write_mux(self,dev_addr,data):
+        self.dev.start(dev_addr,0)
+        self.dev.write([data])
+        self.dev.stop()
+        time.sleep(0.01)
+        
+        
+    def read(self, addr):
+        self.dev.start(self.dev_addr,0)
+        self.dev.write([addr])
+        self.dev.start(self.dev_addr,1)
+        rdata = self.dev.read(2)
+        self.dev.stop()
+        self.val[addr] = rdata[0]
+        # print(f'reading csr[{hex(addr)}] = {hex(rdata[0])}')
+        time.sleep(0.01)
+        return self.val[addr]
+        
+        
+    
+        

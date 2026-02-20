@@ -6,7 +6,7 @@ class SPI:
     def __init__(self, port=None):
         self.val = [i for i in range(512)]
         if port is None:
-            self.dev = USB2SPIDriver('COM6')
+            self.dev = USB2SPIDriver('COM8')
         else:
             self.dev = USB2SPIDriver(port)
         time.sleep(1)
@@ -31,13 +31,13 @@ class SPI:
             self.dev.write([0x40 | ((addr >> 8) & 1),addr & 0xFF,data])
             self.dev.unsel()
             self.val[addr] = data
-            print(f'setting csr[{hex(addr)}] @bdst = {hex(data)}')
+            # print(f'setting csr[{hex(addr)}] @bdst = {hex(data)}')
         elif bdst == 0:
             self.dev.sel()
             self.dev.write([(slv_addr<<1) | ((addr >> 8) & 1),addr & 0xFF,data])
             self.dev.unsel()
             self.val[addr] = data
-            print(f'setting csr[{hex(addr)}] @{slv_addr} = {hex(data)}')
+            # print(f'setting csr[{hex(addr)}] @{slv_addr} = {hex(data)}')
     def read(self,addr, slv_addr = None):
 
         if slv_addr == None:
@@ -51,7 +51,7 @@ class SPI:
             rx=list(self.dev.writeread([0x80 | (slv_addr<<1) | ((addr >> 8) & 1),addr & 0xFF,0x00]))
             self.dev.unsel()
             self.val[addr]=rx[2]
-            print(f'reading csr[{hex(addr)}] @{slv_addr} : {hex(self.val[addr])}')
+            # print(f'reading csr[{hex(addr)}] @{slv_addr} : {hex(self.val[addr])}')
         return self.val[addr]
 
     def cfg_gpio(self):        
