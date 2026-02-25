@@ -31,7 +31,7 @@ orion.TR_MASK.rx_mask = 0xF
 orion.TR_MASK.tx_mask = 0xF
 orion.TR_MASK.write()
 
-RF_CTRL_FUNC.set_RX_bias_mode(orion, 'LOW_V2')
+RF_CTRL_FUNC.set_RX_bias_mode(orion, 'LOW')
 RF_CTRL_FUNC.set_TX_bias_mode(orion, 'NOM')
 
 orion.DAC_CTRL_PA0.DAC_CTRL_PA0 = 127
