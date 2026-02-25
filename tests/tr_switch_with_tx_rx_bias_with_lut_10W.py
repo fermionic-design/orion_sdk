@@ -447,11 +447,11 @@ for i in range (64) :
 
 orion.DAC_CTRL_PA0.DAC_CTRL_PA0 = 48 # 0 corresponds to -2.5V
 orion.DAC_CTRL_PA0.write()
-orion.DAC_CTRL_PA1.DAC_CTRL_PA1 = 127 # 0 corresponds to -2.5V
+orion.DAC_CTRL_PA1.DAC_CTRL_PA1 = 0 # 0 corresponds to -2.5V
 orion.DAC_CTRL_PA1.write()
-orion.DAC_CTRL_PA2.DAC_CTRL_PA2 = 127 # 0 corresponds to -2.5V
+orion.DAC_CTRL_PA2.DAC_CTRL_PA2 = 0 # 0 corresponds to -2.5V
 orion.DAC_CTRL_PA2.write()
-orion.DAC_CTRL_PA3.DAC_CTRL_PA3 = 127 # 0 corresponds to -2.5V
+orion.DAC_CTRL_PA3.DAC_CTRL_PA3 = 0 # 0 corresponds to -2.5V
 orion.DAC_CTRL_PA3.write()
 
 orion.DAC_CTRL_LNA0.DAC_CTRL_LNA0 = 127 # 0 corresponds to -2.5V
@@ -463,13 +463,13 @@ orion.DAC_CTRL_LNA2.write()
 orion.DAC_CTRL_LNA3.DAC_CTRL_LNA3 = 127 # 0 corresponds to -2.5V
 orion.DAC_CTRL_LNA3.write()
 
-orion.DAC_CTRL_PA0_PDN.DAC_CTRL_PA0_PDN = 127 # 0 corresponds to -5V
+orion.DAC_CTRL_PA0_PDN.DAC_CTRL_PA0_PDN = 0 # 0 corresponds to -5V
 orion.DAC_CTRL_PA0_PDN.write()
-orion.DAC_CTRL_PA1_PDN.DAC_CTRL_PA1_PDN = 127 # 0 corresponds to -5V
+orion.DAC_CTRL_PA1_PDN.DAC_CTRL_PA1_PDN = 0 # 0 corresponds to -5V
 orion.DAC_CTRL_PA1_PDN.write()
-orion.DAC_CTRL_PA2_PDN.DAC_CTRL_PA2_PDN = 127 # 0 corresponds to -5V
+orion.DAC_CTRL_PA2_PDN.DAC_CTRL_PA2_PDN = 0 # 0 corresponds to -5V
 orion.DAC_CTRL_PA2_PDN.write()
-orion.DAC_CTRL_PA3_PDN.DAC_CTRL_PA3_PDN = 127 # 0 corresponds to -5V
+orion.DAC_CTRL_PA3_PDN.DAC_CTRL_PA3_PDN = 0 # 0 corresponds to -5V
 orion.DAC_CTRL_PA3_PDN.write()
 
 orion.DAC_CTRL_LNA0_PDN.DAC_CTRL_LNA0_PDN = 127 # 0 corresponds to -5V
