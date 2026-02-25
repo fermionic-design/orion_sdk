@@ -4,6 +4,7 @@ Set TXx at a single gain and phase setting
 """
 import sys
 
+TX_BIAS_MODE="MAX"      # "MAX" for nominal bias mode or "LOW" for low bias mode
 sys.path.append('../include')
 
 import ORION_RF_CONTROL_FUNC as RF_CTRL_FUNC
@@ -42,8 +43,7 @@ def read_column_from_excel(file_path, sheet_name, column_name):
     except Exception as e:
         print(f"Error: {e}")
         
-#------------------------------------------------------------------------
-TX_BIAS_MODE="MAX"      # "NOM" for nominal bias mode or "LOW" for low bias mode
+#-----------------------------------------------------------------------
 
 spi = SPI()
 orion = ORION_8G_12G(spi)
@@ -267,8 +267,13 @@ RF_CTRL_FUNC.set_tx3_gain(orion,2047)
 
 RF_CTRL_FUNC.set_tx0_iphase(orion,254)
 RF_CTRL_FUNC.set_tx0_qphase(orion,1)
+
+RF_CTRL_FUNC.set_tx1_iphase(orion,254)
+RF_CTRL_FUNC.set_tx1_qphase(orion,1)
+
 RF_CTRL_FUNC.set_tx2_iphase(orion,254)
 RF_CTRL_FUNC.set_tx2_qphase(orion,1)
+
 RF_CTRL_FUNC.set_tx3_iphase(orion,254)
 RF_CTRL_FUNC.set_tx3_qphase(orion,1)
 #
@@ -290,25 +295,24 @@ RF_CTRL_FUNC.set_tx3_qphase(orion,1)
 
 orion.REG4_EXT_BIAS.rsvd7 = 0x02
 orion.REG4_EXT_BIAS.write()
-RF_CTRL_FUNC.set_tx0_drv_curr(orion,31)
-RF_CTRL_FUNC.set_tx0_cmb_icurr(orion,3)
-RF_CTRL_FUNC.set_tx0_cmb_qcurr(orion,3)
-RF_CTRL_FUNC.set_tx_lna_curr(orion,3)
 # RF_CTRL_FUNC.set_tx0_drv_curr(orion,31)
 # RF_CTRL_FUNC.set_tx0_cmb_icurr(orion,3)
 # RF_CTRL_FUNC.set_tx0_cmb_qcurr(orion,3)
 # RF_CTRL_FUNC.set_tx_lna_curr(orion,3)
-RF_CTRL_FUNC.set_tx3_drv_curr(orion,31)
-RF_CTRL_FUNC.set_tx3_cmb_icurr(orion,3)
-RF_CTRL_FUNC.set_tx3_cmb_qcurr(orion,3)
-RF_CTRL_FUNC.set_tx_lna_curr(orion,3)
-# orion.TX0_Q_LSB.read()
-# orion.TX0_Q_LSB.display()
-# orion.TX1_Q_LSB.read()
-# orion.TX1_Q_LSB.display()
-# orion.TX2_Q_LSB.read()
-# orion.TX2_Q_LSB.display()
-# orion.TX3_Q_LSB.read()
-# orion.TX3_Q_LSB.display()
+
+# RF_CTRL_FUNC.set_tx1_drv_curr(orion,31)
+# RF_CTRL_FUNC.set_tx1_cmb_icurr(orion,3)
+# RF_CTRL_FUNC.set_tx1_cmb_qcurr(orion,3)
+# RF_CTRL_FUNC.set_tx_lna_curr(orion,3)
+
+# RF_CTRL_FUNC.set_tx2_drv_curr(orion,31)
+# RF_CTRL_FUNC.set_tx2_cmb_icurr(orion,3)
+# RF_CTRL_FUNC.set_tx2_cmb_qcurr(orion,3)
+# RF_CTRL_FUNC.set_tx_lna_curr(orion,3)
+
+# RF_CTRL_FUNC.set_tx3_drv_curr(orion,31)
+# RF_CTRL_FUNC.set_tx3_cmb_icurr(orion,3)
+# RF_CTRL_FUNC.set_tx3_cmb_qcurr(orion,3)
+# RF_CTRL_FUNC.set_tx_lna_curr(orion,3)
 
 spi.close()
