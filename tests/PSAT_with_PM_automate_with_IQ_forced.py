@@ -10,8 +10,8 @@ ant_sel = 0x1         # Tx0=0x1, Tx1=0x2, Tx2=0x4, Tx3=0x8
 param = 'psat'
 log_path = f'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/bench_char/AB38'
 
-i_code_list = [254]
-q_code_list = [1]
+i_code_list = [254,0]
+q_code_list = [1,254]
 d1 = 0.1    # delay after bfm
 
 import sys
