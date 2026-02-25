@@ -1,14 +1,8 @@
-# -- coding: utf-8 --
-"""
-Created on Thu Apr 17 19:09:41 2025
-
-@author: silic
-"""
 version = 'v2'
-ant_sel = 0x8
-chip_id = 'AC88'
-test_condition = 'vdd_2p7_temp_25C_0deg_lowbias00_single_avg_lut'
-mode = "single_lut" # single_lut, dual_lut
+ant_sel = 0x8 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
+chip_id = 'AE00'
+test_condition = 'vdd_2p7_temp_25C_0deg_dual_avg_lut'
+mode = "dual_lut" # single_lut, dual_lut
 
 f = 9.5
 f_min = 7
@@ -72,7 +66,7 @@ orion_lut = ORION_8G_12G_lut(spi)
 orion_hal = ORION_8G_12G_hal(orion_csr,orion_lut,spi,version)
 
 # Initialize xlsx for read
-filename = f'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/bench_char/socket/{chip_id}/rx_gain_sweep__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}.xlsx'
+filename = f'C:/Users/silic/OneDrive/Documents/GitHub/orion/ate/logs_20260221/sweep_results/rx_gain_sweep__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}.xlsx'
 out_xls = xlsw.Workbook(filename)
 
 out_sheet = out_xls.add_worksheet()
@@ -110,9 +104,9 @@ if version == 'v2':
     #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_0p5_pm_1p5_pm2_3_abs_gain_12p5__lowbias__vdd_2p5.xlsx')
     orion_hal.init_lut_new(r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
                            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/tx_phase_lut_9p5_pm_0p5_gm_0p4.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx0__gain_lut__9p5GHz__lowbias_00___vdd_2p7_with_avg.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_0p5_pm_1p4_pm2_5_abs_gain_15__lowbias_00__vdd_2p5.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx0__gain_lut__9p5GHz__lowbias_00___vdd_2p7_with_avg.xlsx',
+                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
+                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx',
+                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx2__gain_lut__9p5GHz__lowbias_00__vdd_2p7_with_avg_for_dual_lut.xlsx',
                            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_0p5_pm_1p4_pm2_5_abs_gain_15__lowbias_00__vdd_2p5.xlsx')
 else:
     orion_hal.init_lut_new(r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
@@ -132,7 +126,7 @@ print('minor_revision = '+hex(orion_csr.REVISION.minor_rev))
 
 orion_hal.set_tr_mode('INT_TR')
 orion_hal.set_trx_mode(0)
-orion_hal.init_rx('LOW')
+orion_hal.init_rx('NOM')
 orion_hal.set_tr_mask(rx_mask=0xF)
 orion_hal.set_freq('9G')
 orion_hal.cfg_stg2_load('REG')
@@ -147,19 +141,36 @@ time.sleep(d2)
 instruments.vna.norm(win_id=2)
 time.sleep(d2)
 
+offset_steps = int(0.5 / f_step)
+freq_targets = {
+    f"{f-0.5:.2f}GHz": pi - offset_steps,
+    f"{f:.2f}GHz": pi,
+    f"{f+0.5:.2f}GHz": pi + offset_steps
+}
+
+freq_targets = {
+    k: v for k, v in freq_targets.items()
+    if 0 <= v < freq_pts
+}
+
+phase_err_store = {k: [] for k in freq_targets}
+gain_err_store  = {k: [] for k in freq_targets}
+phase_err_all = [[] for _ in range(freq_pts)]
+gain_err_all  = [[] for _ in range(freq_pts)]
+
 xls_row=1
 for g_idx in range (0,64,1):
     if mode == "dual_lut":
         if g_idx <=31:
-            band = '9G'
+            # band = '9G'
             orion_hal.set_freq('9G')
-            orion_hal.init_rx('LOW')
+            orion_hal.init_rx('NOM')
         else:
-            band = "11G"
+            # band = "11G"
             orion_hal.set_freq('11G')
             orion_hal.init_rx('LOW')
     else:
-        band = '9G'
+        # band = '9G'
         orion_hal.set_freq('9G')
         orion_hal.init_rx('LOW')
 
@@ -212,9 +223,134 @@ for g_idx in range (0,64,1):
         phase_error_deg = orion_hal.calc_phase_wrapped(orion_hal.calc_phase_wrapped(s21_phase_array[freq_idx]-ref_s21_phase_array_9G[freq_idx])-0)
         gain_error_dB = s21_gain_array[freq_idx]-ref_s21_gain_array_9G[freq_idx]-orion_hal.target_gain_dB
 
+        phase_err_all[freq_idx].append(phase_error_deg)
+        gain_err_all[freq_idx].append(gain_error_dB)
+        
+        for label, idx in freq_targets.items():
+            if freq_idx == idx:
+                phase_err_store[label].append(phase_error_deg)
+                gain_err_store[label].append(gain_error_dB)
+                
         out_sheet2.write(xls_row, freq_idx+6, phase_error_deg)
         out_sheet2.write(xls_row, freq_idx+6+freq_pts+1, gain_error_dB)
     xls_row+=1
+
+summary_start_row = xls_row + 0
+freq_val = f_min
+for idx in range(freq_pts):
+    out_sheet2.write(summary_start_row, idx + 6, freq_val)
+    freq_val += f_step
+
+gain_col_offset = freq_pts + 7
+freq_val = f_min
+for idx in range(freq_pts):
+    out_sheet2.write(summary_start_row, gain_col_offset + idx, freq_val)
+    freq_val += f_step
+
+metrics = ["std", "avg", "rms", "peak"]
+
+for m_idx, metric in enumerate(metrics):
+    row = summary_start_row + 1 + m_idx
+    out_sheet2.write(row, 5, f"{metric} (m31p5dB)")
+    out_sheet2.write(row, gain_col_offset - 1, f"{metric} (m31p5dB)")
+
+    for freq_idx in range(freq_pts):
+        phase_arr = np.array(phase_err_all[freq_idx])
+        gain_arr  = np.array(gain_err_all[freq_idx])
+
+        if metric == "std":
+            phase_val = np.std(phase_arr)
+            gain_val  = np.std(gain_arr)
+
+        elif metric == "avg":
+            phase_val = np.mean(phase_arr)
+            gain_val  = np.mean(gain_arr)
+
+        elif metric == "rms":
+            std_p = np.std(phase_arr)
+            avg_p = np.mean(phase_arr)
+            phase_val = np.sqrt(avg_p**2 + std_p**2)
+
+            std_g = np.std(gain_arr)
+            avg_g = np.mean(gain_arr)
+            gain_val = np.sqrt(avg_g**2 + std_g**2)
+
+        elif metric == "peak":
+            phase_val = max(np.max(phase_arr), abs(np.min(phase_arr)))
+            gain_val  = max(np.max(gain_arr),  abs(np.min(gain_arr)))
+
+        out_sheet2.write(row, freq_idx + 6, phase_val)
+        out_sheet2.write(row, gain_col_offset + freq_idx, gain_val)
+
+# ================= 26 dB LIMITED EXCEL SUMMARY =================
+
+ATTN_LIMIT_DB = 26
+ATTN_STEP_DB  = 0.5
+max_index = int(ATTN_LIMIT_DB / ATTN_STEP_DB) + 1  # include 26 dB
+
+# Start writing after the 32 dB summary block
+summary_26_start = summary_start_row + 1 + len(metrics) + 1  # 1 blank row gap
+
+for m_idx, metric in enumerate(metrics):
+
+    row = summary_26_start + m_idx
+
+    out_sheet2.write(row, 5, f"{metric} (m26dB)")
+    out_sheet2.write(row, gain_col_offset - 1, f"{metric} (m26dB)")
+
+    for freq_idx in range(freq_pts):
+
+        phase_arr = np.array(phase_err_all[freq_idx][:max_index])
+        gain_arr  = np.array(gain_err_all[freq_idx][:max_index])
+
+        if metric == "std":
+            phase_val = np.std(phase_arr)
+            gain_val  = np.std(gain_arr)
+
+        elif metric == "avg":
+            phase_val = np.mean(phase_arr)
+            gain_val  = np.mean(gain_arr)
+
+        elif metric == "rms":
+            phase_val = np.sqrt(np.mean(phase_arr**2))
+            gain_val  = np.sqrt(np.mean(gain_arr**2))
+
+        elif metric == "peak":
+            phase_val = np.max(np.abs(phase_arr))
+            gain_val  = np.max(np.abs(gain_arr))
+
+        out_sheet2.write(row, freq_idx + 6, phase_val)
+        out_sheet2.write(row, gain_col_offset + freq_idx, gain_val)
+                
+print("\n================ FINAL ERROR SUMMARY ================\n")
+
+ATTN_LIMIT_DB = 26
+ATTN_STEP_DB  = 0.5
+max_index = int(ATTN_LIMIT_DB / ATTN_STEP_DB) + 1   # inclusive
+
+for label in freq_targets:
+
+    # Slice only up to 26 dB attenuation
+    phase_arr = np.array(phase_err_store[label][:max_index])
+    gain_arr  = np.array(gain_err_store[label][:max_index])
+
+    rms_phase = np.sqrt(np.mean(phase_arr**2))
+    peak_phase = np.max(np.abs(phase_arr))
+
+    rms_gain = np.sqrt(np.mean(gain_arr**2))
+    peak_gain = np.max(np.abs(gain_arr))
+
+    print(f"Frequency: {label} for m26dB attn")
+    print(f"  RMS Phase Error  : {rms_phase:.3f} deg")
+    print(f"  Peak Phase Error : {peak_phase:.3f} deg")
+    if rms_gain > 0.5:
+        print(f"  \033[1;31mRMS Gain Error FAILED: {rms_gain:.3f} dB\033[0m")
+    else:
+        print(f"  RMS Gain Error   : {rms_gain:.3f} dB")
+    print(f"  Peak Gain Error  : {peak_gain:.3f} dB")
+    print("-----------------------------------------------------")
+
+print("\n=====================================================\n")
 
 instruments.vna.cfg_pwr(pwr=-60)
 instruments.vna.write(":OUTP OFF")
@@ -223,11 +359,3 @@ print(f'\nData Dump File: {filename}')
 elapsed = time.time() - start_time
 print(f'Elapsed time: {elapsed:.1f} s')
 spi.close()
-
-
-# my_vna.write(":CALC:AVER:STAT ON")
-# my_vna.write(":CALC:AVER:COUN 16")
-# my_vna.write(":CALC:AVER:CLE")
-
-# s21_gain_array=my_vna.query_ascii_values(':CALC:MEAS1:DATA:FDATA?')
-# s21_phase_array=my_vna.query_ascii_values(':CALC:MEAS2:DATA:FDATA?')
