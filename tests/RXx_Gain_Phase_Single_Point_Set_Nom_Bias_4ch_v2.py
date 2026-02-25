@@ -379,7 +379,7 @@ for i in range (gain_lut_len):
     GAIN RANGE: 0 to -26 dB
     PHASE RANGE: 0 degrees to +360 degrees (-ve phase values not allowed)
 """ 
-RX_TARGET_GAIN_dB = 0
+RX_TARGET_GAIN_dB = -0.5*0
 RX_TARGET_PHASE_DEG = 0
 
 RX_TARGET_GAIN_dB_ch1 = -0.5*0
@@ -514,8 +514,12 @@ orion.REG4_EXT_BIAS.rsvd7 = 0x02
 orion.REG4_EXT_BIAS.write()
 
 RF_CTRL_FUNC.set_rx0_gain(orion,2047)
-RF_CTRL_FUNC.set_rx0_iphase(orion,255)
-RF_CTRL_FUNC.set_rx0_qphase(orion,0)
+RF_CTRL_FUNC.set_rx0_iphase(orion,0)
+RF_CTRL_FUNC.set_rx0_qphase(orion,255)
+
+RF_CTRL_FUNC.set_rx2_gain(orion,2047)
+RF_CTRL_FUNC.set_rx2_iphase(orion,96)
+RF_CTRL_FUNC.set_rx2_qphase(orion,444)
 
 RF_CTRL_FUNC.set_rx2_gain(orion,2047)
 RF_CTRL_FUNC.set_rx2_iphase(orion,96)
