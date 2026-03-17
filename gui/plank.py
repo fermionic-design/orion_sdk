@@ -142,6 +142,8 @@ class App(tk.Tk):
                 if name != "selected":
                     self.attach_callback(var, element_id, name)
 
+            vars_dict["selected"].trace_add("write", lambda *args, eid=element_id: self.on_element_select(eid))
+
             ttk.Checkbutton(self.calib_main, variable=vars_dict["selected"]) \
                 .grid(row=row_idx, column=0)
 
@@ -202,11 +204,28 @@ class App(tk.Tk):
     # =========================
     # Handlers
     # =========================
+    def on_element_select(self, element_id):
+        selected = self.element_controls[element_id]["selected"].get()
+        print(f"Element {element_id} {'selected' if selected else 'deselected'}")
+        entry = next(e for e in self.mapping["list"] if e["element_id"] == element_id)
+        print(entry)
+        for addr in self.dev_addr:
+            ch_en = 0
+            for e in self.mapping["list"]:
+                if e["bfm_id"] == addr and self.element_controls[e["element_id"]]["selected"].get():
+                    ch_en |= (1 << e["ch_id"])
+            print(ch_en)
+            self.dev_hal[addr].set_tr_mask(tx_mask=ch_en, rx_mask=ch_en)
+            self.dev_hal[addr].stg2_load()
+
+
     def on_program_defaults(self):
         for controls in self.element_controls.values():
-            controls["bias"].set(127)
+            controls["bias"].set(15)
             controls["gain"].set(0)
             controls["phase"].set(4)
+
+        # self.hal_bdst.dac_cfg(pa_sel=0xF, lna_sel=0xF, PA0=85, PA1=85, PA2=85, PA3=85, LNA0=15, LNA1=15, LNA2=15, LNA3=15)
         self.status_var.set("Defaults programmed")
 
     def on_spinbox_change(self, element_id, field_name, value):
@@ -219,6 +238,13 @@ class App(tk.Tk):
 
         self.element_controls[element_id][field_name].set(value)
         self.status_var.set(f"E{element_id} {field_name} → {value}")
+
+        if(field_name == "bias"):
+            addr = self.mapping["list"][element_id]["bfm_id"]
+            ch_id = self.mapping["list"][element_id]["ch_id"]
+            lna_sel = 1 << ch_id
+            self.dev_hal[addr].dac_cfg(pa_sel=0x0, lna_sel=lna_sel, **{f'LNA{ch_id}': value})
+            print(f'Updated Device {hex(addr)} Channel {ch_id} Bias to {value}')
 
     def on_sanity(self):
         self.status_var.set("Sanity check")
@@ -245,8 +271,6 @@ class App(tk.Tk):
         print("dev_addr =", [f"0x{addr:02X}" for addr in dev_addr])
         status_var = f"Sanity: {len(dev_addr)} devices found at " + ", ".join([f"0x{addr:02X}" for addr in dev_addr])
         self.status_var.set(status_var)
-
-
         print('\n')
 
     def on_load_plank(self):
@@ -335,6 +359,8 @@ class App(tk.Tk):
         self.orion_bdst.SYNC_RST.write()
         self.orion_bdst.SYNC_RST.sync_rst = 0
         self.orion_bdst.SYNC_RST.write()
+
+        self.on_load_plank()  # this resets all GUI selections
 
         self.status_var.set("Plank reset")
 
