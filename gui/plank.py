@@ -9,6 +9,7 @@ from ORION_8G_12G_hal import *
 
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
 import csv
 
 class App(tk.Tk):
@@ -35,6 +36,9 @@ class App(tk.Tk):
         self.dev_hal = []
 
         self.hal_bdst = ORION_8G_12G_hal(self.orion_bdst, self.orion_lut_bdst, self.spi, version)
+
+        self.cfg_path = ''
+        self.cal_path = ''
 
     # =========================
     # Layout
@@ -273,8 +277,16 @@ class App(tk.Tk):
         self.status_var.set(status_var)
         print('\n')
 
-    def on_load_plank(self):
-        self.mapping = self.load_element_map("plank9.cfg")
+    def on_load_plank(self, path=None):
+        if(path is None):
+            self.cfg_path = filedialog.askopenfilename(filetypes=[("Config files", "*.cfg"), ("All files", "*.*")])
+            if not self.cfg_path:
+                return
+        else:
+            self.cfg_path = path
+        self.cal_path = self.cfg_path.replace(".cfg", ".cal")
+
+        self.mapping = self.load_element_map(self.cfg_path)
         for entry in self.mapping["list"]:
             print(f"E{entry['element_id']}: BFM={hex(entry['bfm_id'])}, CH={entry['ch_id']}")
             self.dev_addr.append(entry["bfm_id"])
@@ -318,7 +330,7 @@ class App(tk.Tk):
         self.hal_bdst.en_data_path(1)
 
     def on_save_cal(self):
-        with open("plank9.cal", "w", newline="") as f:
+        with open(self.cal_path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["element_id", "bfm_id", "ch_id", "bias", "gain", "phase"])
 
@@ -339,7 +351,7 @@ class App(tk.Tk):
 
     def on_load_cal(self):
         try:
-            with open("plank9.cal") as f:
+            with open(self.cal_path) as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     eid = int(row["element_id"])
@@ -360,7 +372,7 @@ class App(tk.Tk):
         self.orion_bdst.SYNC_RST.sync_rst = 0
         self.orion_bdst.SYNC_RST.write()
 
-        self.on_load_plank()  # this resets all GUI selections
+        self.on_load_plank(self.cfg_path)  # this resets all GUI selections
 
         self.status_var.set("Plank reset")
 
