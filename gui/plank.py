@@ -30,6 +30,9 @@ class App(tk.Tk):
         self.orion_lut_bdst = ORION_8G_12G_lut(self.spi)
         self.device_count = 0x20  # Scans from 0x00 to 0x1F (32 addresses)
         self.dev_addr = []
+        self.dev_csr = []
+        self.dev_lut = []
+        self.dev_hal = []
 
         self.hal_bdst = ORION_8G_12G_hal(self.orion_bdst, self.orion_lut_bdst, self.spi, version)
 
@@ -219,7 +222,7 @@ class App(tk.Tk):
 
     def on_sanity(self):
         self.status_var.set("Sanity check")
-        self.dev_addr = []
+        dev_addr = []
         print("Scanning for ORION devices at hex addresses 0x00 to 0x1F...")
 
         for addr in range(0x00, self.device_count):
@@ -233,14 +236,14 @@ class App(tk.Tk):
 
                 if device_id == 0xF2 and major == 1 and minor == 1:
                     print(f"Device found at address 0x{addr:02X}: ID=0x{device_id:02X}, Rev={major}.{minor}")
-                    self.dev_addr.append(addr)
+                    dev_addr.append(addr)
             except Exception:
                 pass  # Ignore errors if no device responds
 
         print("\nSummary:")
-        print(f"Total Devices Detected: {len(self.dev_addr)}")
-        print("dev_addr =", [f"0x{addr:02X}" for addr in self.dev_addr])
-        status_var = f"Sanity: {len(self.dev_addr)} devices found at " + ", ".join([f"0x{addr:02X}" for addr in self.dev_addr])
+        print(f"Total Devices Detected: {len(dev_addr)}")
+        print("dev_addr =", [f"0x{addr:02X}" for addr in dev_addr])
+        status_var = f"Sanity: {len(dev_addr)} devices found at " + ", ".join([f"0x{addr:02X}" for addr in dev_addr])
         self.status_var.set(status_var)
 
 
@@ -248,6 +251,19 @@ class App(tk.Tk):
 
     def on_load_plank(self):
         self.mapping = self.load_element_map("plank9.cfg")
+        for entry in self.mapping["list"]:
+            print(f"E{entry['element_id']}: BFM={hex(entry['bfm_id'])}, CH={entry['ch_id']}")
+            self.dev_addr.append(entry["bfm_id"])
+        self.dev_addr = list(dict.fromkeys(self.dev_addr))
+        print(self.dev_addr)
+        for addr in self.dev_addr:
+            dev_csr = ORION_8G_12G(self.spi, addr, 0)
+            dev_lut = ORION_8G_12G_lut(self.spi, addr, 0)
+            dev_hal = ORION_8G_12G_hal(dev_csr, dev_lut, self.spi, version)
+            self.dev_csr.append(dev_csr)
+            self.dev_lut.append(dev_lut)
+            self.dev_hal.append(dev_hal)
+        print(self.dev_hal)
         self.populate_calibration_table()
         self.status_var.set("Plank loaded")
 
