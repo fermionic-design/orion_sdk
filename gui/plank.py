@@ -1,3 +1,12 @@
+version = 'v1'
+import sys
+sys.path.append('../include')
+
+from SPI import *
+from ORION_8G_12G import *
+from ORION_8G_12G_lut import *
+from ORION_8G_12G_hal import *
+
 import tkinter as tk
 from tkinter import ttk
 import csv
@@ -15,6 +24,12 @@ class App(tk.Tk):
         self._create_layout()
         self._create_tabs()
         self._create_status_bar()
+
+        self.spi = SPI()
+        self.orion_bdst = ORION_8G_12G(self.spi, 0, 1)
+        self.orion_lut_bdst = ORION_8G_12G_lut(self.spi)
+        self.device_count = 0x20  # Scans from 0x00 to 0x1F (32 addresses)
+        self.dev_addr = []
 
     # =========================
     # Layout
@@ -59,6 +74,7 @@ class App(tk.Tk):
 
         ttk.Button(self.calib_sidebar, text="Sanity", command=self.on_sanity).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Load Plank Cfg", command=self.on_load_plank).pack(fill="x", pady=5)
+        ttk.Button(self.calib_sidebar, text="Init Plank", command=self.on_init_plank).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Program Defaults", command=self.on_program_defaults).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Save Cal", command=self.on_save_cal).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Load Cal", command=self.on_load_cal).pack(fill="x", pady=5)
@@ -200,14 +216,44 @@ class App(tk.Tk):
 
     def on_sanity(self):
         self.status_var.set("Sanity check")
+        self.dev_addr = []
+        print("Scanning for ORION devices at hex addresses 0x00 to 0x1F...")
+
+        for addr in range(0x00, self.device_count):
+            try:
+                dev = ORION_8G_12G(self.spi, addr, 0)
+                dev.DEVICE_ID.read()
+                device_id = dev.DEVICE_ID.device_id
+                dev.REVISION.read()
+                major = dev.REVISION.major_rev
+                minor = dev.REVISION.minor_rev
+
+                if device_id == 0xF2 and major == 1 and minor == 1:
+                    print(f"Device found at address 0x{addr:02X}: ID=0x{device_id:02X}, Rev={major}.{minor}")
+                    self.dev_addr.append(addr)
+            except Exception:
+                pass  # Ignore errors if no device responds
+
+        print("\nSummary:")
+        print(f"Total Devices Detected: {len(self.dev_addr)}")
+        print("dev_addr =", [f"0x{addr:02X}" for addr in self.dev_addr])
+        status_var = f"Sanity: {len(self.dev_addr)} devices found at " + ", ".join([f"0x{addr:02X}" for addr in self.dev_addr])
+        self.status_var.set(status_var)
+
+
+        print('\n')
 
     def on_load_plank(self):
-        self.mapping = self.load_element_map("plank1.cfg")
+        self.mapping = self.load_element_map("plank9.cfg")
         self.populate_calibration_table()
         self.status_var.set("Plank loaded")
 
+    def on_init_plank(self):
+        self.status_var.set("Plank Initialized")
+
+
     def on_save_cal(self):
-        with open("plank1.cal", "w", newline="") as f:
+        with open("plank9.cal", "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["element_id", "bfm_id", "ch_id", "bias", "gain", "phase"])
 
@@ -228,7 +274,7 @@ class App(tk.Tk):
 
     def on_load_cal(self):
         try:
-            with open("plank1.cal") as f:
+            with open("plank9.cal") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     eid = int(row["element_id"])
