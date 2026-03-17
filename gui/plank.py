@@ -31,6 +31,8 @@ class App(tk.Tk):
         self.device_count = 0x20  # Scans from 0x00 to 0x1F (32 addresses)
         self.dev_addr = []
 
+        self.hal_bdst = ORION_8G_12G_hal(self.orion_bdst, self.orion_lut_bdst, self.spi, version)
+
     # =========================
     # Layout
     # =========================
@@ -78,6 +80,7 @@ class App(tk.Tk):
         ttk.Button(self.calib_sidebar, text="Program Defaults", command=self.on_program_defaults).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Save Cal", command=self.on_save_cal).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Load Cal", command=self.on_load_cal).pack(fill="x", pady=5)
+        ttk.Button(self.calib_sidebar, text="Reset Plank", command=self.on_reset).pack(fill="x", pady=5)
 
         # ---- TR Mode ----
         ttk.Label(self.calib_sidebar, text="TR Mode:").pack(anchor="w", pady=(0, 5))
@@ -249,8 +252,13 @@ class App(tk.Tk):
         self.status_var.set("Plank loaded")
 
     def on_init_plank(self):
-        self.status_var.set("Plank Initialized")
+        # Write DACs and reset TR configs via broadcast
+        self.hal_bdst.dac_cfg(pa_sel=0xF, lna_sel=0xF)
 
+        # Setting data path and tx and rx mask to 0 for safety
+        self.hal_bdst.en_data_path(0)
+        self.hal_bdst.set_tr_mask(tx_mask=0, rx_mask=0)
+        self.status_var.set("Plank Initialized")
 
     def on_save_cal(self):
         with open("plank9.cal", "w", newline="") as f:
@@ -289,6 +297,8 @@ class App(tk.Tk):
         except:
             self.status_var.set("Load failed")
 
+    def on_reset(self):
+        self.status_var.set("Plank reset")
 
 if __name__ == "__main__":
     app = App()
