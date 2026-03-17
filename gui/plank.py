@@ -260,6 +260,23 @@ class App(tk.Tk):
         self.hal_bdst.set_tr_mask(tx_mask=0, rx_mask=0)
         self.status_var.set("Plank Initialized")
 
+        # Setup in RX Mode
+        self.hal_bdst.init_lut_new(
+            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
+            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/tx_phase_lut_9p5_pm_0p5_gm_0p4.xlsx',
+            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/RX0_Gain_LUT_9p5GHz_LowBias_I_460_Q_8.xlsx',
+            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/phase_lut_freq_9p5_gm_0p5_pm_1p5_optimal.xlsx',
+            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/RX0_Gain_LUT_9p5GHz_LowBias_I_460_Q_8.xlsx',
+            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/phase_lut_freq_9p5_gm_0p5_pm_1p5_optimal.xlsx')
+
+        self.hal_bdst.cfg_stg2_load('REG')
+        self.hal_bdst.set_tr_mode('EXT_TR')
+        self.hal_bdst.set_trx_mode(0)
+        self.hal_bdst.init_rx('NOM')
+        self.hal_bdst.set_freq('11G')
+        self.hal_bdst.enable_rx_correction(1)
+        self.hal_bdst.en_data_path(1)
+
     def on_save_cal(self):
         with open("plank9.cal", "w", newline="") as f:
             writer = csv.writer(f)
@@ -298,6 +315,11 @@ class App(tk.Tk):
             self.status_var.set("Load failed")
 
     def on_reset(self):
+        self.orion_bdst.SYNC_RST.sync_rst = 1
+        self.orion_bdst.SYNC_RST.write()
+        self.orion_bdst.SYNC_RST.sync_rst = 0
+        self.orion_bdst.SYNC_RST.write()
+
         self.status_var.set("Plank reset")
 
 if __name__ == "__main__":
