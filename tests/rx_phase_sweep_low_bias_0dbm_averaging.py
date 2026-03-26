@@ -1,6 +1,6 @@
 version = 'v2'
-ant_sel = 0x8 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
-chip_id = 'ACE00'
+ant_sel = 0x4 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
+chip_id = 'trial'
 test_condition = 'vdd_2p7_temp_25C_nombias_0dbm_single_lut'
 
 f = 9.5
@@ -9,7 +9,7 @@ f_max = 13
 f_step = 0.25
 
 d1 = 0.1   # delay after setting IQ
-d2 = 1   # delay after normalization
+d2 = 0.2   # delay after normalization
 
 import sys
 sys.path.append('../../include')
@@ -55,7 +55,7 @@ instruments.vna.set_y_axis(win_id=2, ref_level=0, scale_per_div=45)
 
 # Averaging
 instruments.vna.write(":SENS:AVER:STAT ON")
-instruments.vna.write(":SENS:AVER:COUN 128")
+instruments.vna.write(":SENS:AVER:COUN 64")
 
 spi = SPI()
 orion_csr = ORION_8G_12G(spi)
@@ -63,7 +63,7 @@ orion_lut = ORION_8G_12G_lut(spi)
 orion_hal = ORION_8G_12G_hal(orion_csr,orion_lut,spi,version)
 
 # Initialize xlsx for read
-filename = f'C:/Users/silic/OneDrive/Documents/GitHub/orion/ate/logs_20260221/sweep_results/rx_phase_sweep__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}.xlsx'
+filename = f'C:/Users/silic/OneDrive/Documents/GitHub/orion/ate/ate_20260311/sweep_results/rx_phase_sweep__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}.xlsx'
 out_xls = xlsw.Workbook(filename)
 
 #################################################################################################################
@@ -103,12 +103,18 @@ if version == 'v2':
     #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx',
     #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx0__gain_lut__freq_9p5__nombias__vdd_2p7.xlsx',
     #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx')
+    # orion_hal.init_lut_new(r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
+    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/tx_phase_lut_9p5_pm_0p5_gm_0p4.xlsx',
+    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
+    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx',
+    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
+    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx')
     orion_hal.init_lut_new(r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
                            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/tx_phase_lut_9p5_pm_0p5_gm_0p4.xlsx',
                            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx',
+                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/phase_LUT_9.5_pm_1.2_norm_gain_-2_gm_0.4_nombias33_avg_new2.xlsx',
                            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx')
+                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/phase_LUT_9.5_pm_1.2_norm_gain_-2_gm_0.4_nombias33_avg_new2.xlsx')
 else:
     orion_hal.init_lut_new(r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
                            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/tx_phase_lut_9p5_pm_0p5_gm_0p4.xlsx',
@@ -283,7 +289,7 @@ for label in freq_targets:
 
     print(f"Frequency: {label}")
     if rms_phase > 2.975:
-        print(f"  \033[1;31mRMS Phase Error FAILED: {rms_phase:.3f} dB\033[0m")
+        print(f"  \033[1;31mRMS Phase Error FAILED: {rms_phase:.3f} deg\033[0m")
     else:
         print(f"  RMS Phase Error  : {rms_phase:.3f} deg")
     print(f"  Peak Phase Error : {peak_phase:.3f} deg")
