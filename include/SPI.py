@@ -6,7 +6,7 @@ class SPI:
     def __init__(self, port=None):
         self.val = [i for i in range(512)]
         if port is None:
-            self.dev = USB2SPIDriver('COM8')
+            self.dev = USB2SPIDriver('COM5')
         else:
             self.dev = USB2SPIDriver(port)
         time.sleep(1)
