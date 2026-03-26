@@ -1,6 +1,6 @@
 version = 'v2'
-ant_sel = 0x1
-chip_id = 'AE123'
+ant_sel = 0x2
+chip_id = 'AB40'
 test_condition = 'max_bias_at_inp_p1dB_0dB_attn'
 
 f = 14.25
@@ -8,13 +8,13 @@ f_min = 10.0
 f_max = 16.0
 f_step = 0.25
 
-d1 = 0.8   # delay after setting IQ
+d1 = 0.3   # delay after setting IQ
 d2 = 0.5   # delay after normalization
 
 import sys
-sys.path.append('../../include')
+sys.path.append('../include')
 
-from libs.fd_cmn.instruments.instruments import instruments
+from libs.instruments import instruments
 from ORION_8G_12G import *
 from ORION_8G_12G_lut import *
 from ORION_8G_12G_hal import *
@@ -64,12 +64,12 @@ orion_csr = ORION_8G_12G(spi)
 orion_lut = ORION_8G_12G_lut(spi)
 orion_hal = ORION_8G_12G_hal(orion_csr,orion_lut,spi,version)
 
-orion_hal.init_lut_new(r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
-                       r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/tx_v2__phase_lut_freq_14p25_gm_0p5_pm_1p5_pm2_4_abs_gain_8__maxbias__vdd_2p7.xlsx',
-                       r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/v2__rx_gain_lut__nom_bias__9p5GHz.xlsx',
-                       r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/v2__phase_lut_freq_9p5_gm_1_pm_1p4.xlsx',
-                       r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/v2__rx_gain_lut__nom_bias__9p5GHz.xlsx',
-                       r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/v2__phase_lut_freq_9p5_gm_1_pm_1p4.xlsx')
+orion_hal.init_lut_new(r'../final_lut/TX_Gain_LUT_10p5GHz.xlsx',
+                       r'../final_lut/tx_v2__phase_lut_freq_14p25_gm_0p5_pm_1p5_pm2_4_abs_gain_8__maxbias__vdd_2p7.xlsx',
+                       r'../final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
+                       r'../final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx',
+                       r'../final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
+                       r'../final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx')
 
 orion_hal.set_tr_mode('INT_TR')
 orion_hal.set_trx_mode(1)
@@ -97,7 +97,7 @@ time.sleep(d2)
 #
 # exit()
 # Initialize xlsx for read
-filename = f'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/tx_char__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}__{ts}.xlsx'
+filename = f'../results/tx_char__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}__{ts}.xlsx'
 out_xls = xlsw.Workbook(filename)
 
 out_sheet = out_xls.add_worksheet()
@@ -107,7 +107,7 @@ out_sheet.write(0,2,'Q-Code')
 out_sheet.write(0,3,'Target Atten')
 out_sheet.write(0,4,'Target Phase')
 
-freq=7
+freq=f_min
 for i in range(0,freq_pts,1):
     out_sheet.write(0,i+6,'S21 Gain dB '+str(freq)+'GHz')
     out_sheet.write(0,i+6+freq_pts+1,'S21 Phase Deg '+str(freq)+'GHz')
@@ -120,7 +120,7 @@ out_sheet2.write(0,2,'Q-Code')
 out_sheet2.write(0,3,'Target Atten')
 out_sheet2.write(0,4,'Target Phase')
 
-freq=7
+freq=f_min
 for i in range(0,freq_pts,1):
     out_sheet2.write(0,i+6,'Phase Error Deg '+str(freq)+'GHz')
     out_sheet2.write(0,i+6+freq_pts+1,'Gain Error dB '+str(freq)+'GHz')

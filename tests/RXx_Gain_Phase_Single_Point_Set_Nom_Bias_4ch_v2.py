@@ -514,20 +514,20 @@ orion.REG4_EXT_BIAS.rsvd7 = 0x02
 orion.REG4_EXT_BIAS.write()
 
 RF_CTRL_FUNC.set_rx0_gain(orion,2047)
-RF_CTRL_FUNC.set_rx0_iphase(orion,255)
-RF_CTRL_FUNC.set_rx0_qphase(orion,0)
+RF_CTRL_FUNC.set_rx0_iphase(orion,0)
+RF_CTRL_FUNC.set_rx0_qphase(orion,248)
 
 RF_CTRL_FUNC.set_rx2_gain(orion,2047)
-RF_CTRL_FUNC.set_rx2_iphase(orion,96)
-RF_CTRL_FUNC.set_rx2_qphase(orion,444)
+RF_CTRL_FUNC.set_rx2_iphase(orion,504)
+RF_CTRL_FUNC.set_rx2_qphase(orion,4)
 
 RF_CTRL_FUNC.set_rx2_gain(orion,2047)
-RF_CTRL_FUNC.set_rx2_iphase(orion,96)
-RF_CTRL_FUNC.set_rx2_qphase(orion,444)
+RF_CTRL_FUNC.set_rx2_iphase(orion,504)
+RF_CTRL_FUNC.set_rx2_qphase(orion,4)
 
 RF_CTRL_FUNC.set_rx3_gain(orion,2047)
-RF_CTRL_FUNC.set_rx3_iphase(orion,500)
-RF_CTRL_FUNC.set_rx3_qphase(orion,8)
+RF_CTRL_FUNC.set_rx3_iphase(orion,0)
+RF_CTRL_FUNC.set_rx3_qphase(orion,248)
 
 spi.close()    
 

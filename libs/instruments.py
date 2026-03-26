@@ -70,7 +70,7 @@ class instruments:
         print('\nInstruments Available: ', self.rm.list_resources())
 
         try:
-            rm_vna = self.rm.open_resource('USB0::0x2A8D::0x2A01::MY63057316::0::INSTR')
+            rm_vna = self.rm.open_resource('TCPIP0::localhost::hislip0::INSTR')
             print('VNA: ', rm_vna.query('*IDN?'))
             self.vna = vna(rm_vna)
         except Exception as e:

@@ -5,8 +5,8 @@ Created on Thu Apr 17 19:09:41 2025
 @author: silic
 """
 version = 'v2'
-ant_sel = 0x8 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
-chip_id = 'AH160'
+ant_sel = 0x2 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
+chip_id = 'AB40'
 test_condition = 'vdd_2p7_temp_25C_0deg_dual_avg_lut'
 mode = "dual_lut" # single_lut, dual_lut
 
@@ -19,9 +19,9 @@ d1 = 0.1   # delay after setting IQ
 d2 = 0.2   # delay after normalization
 
 import sys
-sys.path.append('../../include')
+sys.path.append('../include')
 
-from libs.fd_cmn.instruments.instruments import instruments
+from libs.instruments import instruments
 import ORION_RF_CONTROL_FUNC as RF_CTRL_FUNC
 from ORION_8G_12G import *
 from ORION_8G_12G_lut import *
@@ -72,7 +72,7 @@ orion_lut = ORION_8G_12G_lut(spi)
 orion_hal = ORION_8G_12G_hal(orion_csr,orion_lut,spi,version)
 
 # Initialize xlsx for read
-filename = f'C:/Users/silic/OneDrive/Documents/GitHub/orion/ate/ate_20260311/sweep_results/rx_gain_sweep__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}.xlsx'
+filename = f'../results/rx_gain_sweep__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}.xlsx'
 out_xls = xlsw.Workbook(filename)
 
 out_sheet = out_xls.add_worksheet()
@@ -82,7 +82,7 @@ out_sheet.write(0,2,'Q-Code')
 out_sheet.write(0,3,'Target Atten')
 out_sheet.write(0,4,'Target Phase')
 
-freq=7
+freq=f_min
 for i in range(0,freq_pts,1):
     out_sheet.write(0,i+6,'S21 Gain dB '+str(freq)+'GHz')
     out_sheet.write(0,i+6+freq_pts+1,'S21 Phase Deg '+str(freq)+'GHz')
@@ -95,25 +95,19 @@ out_sheet2.write(0,2,'Q-Code')
 out_sheet2.write(0,3,'Target Atten')
 out_sheet2.write(0,4,'Target Phase')
 
-freq=7
+freq=f_min
 for i in range(0,25,1):
     out_sheet2.write(0,i+6,'Phase Error Deg '+str(freq)+'GHz')
     out_sheet2.write(0,i+32,'Gain Error dB '+str(freq)+'GHz')
     freq+=0.25
     
 if version == 'v2':
-    # orion_hal.init_lut_new(r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
-    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/tx_phase_lut_9p5_pm_0p5_gm_0p4.xlsx',
-    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx0__gain_lut__9p5GHz__lowbias_vdd_2p5.xlsx',
-    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_0p5_pm_1p5_pm2_3_abs_gain_12p5__lowbias__vdd_2p5.xlsx',
-    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx0__gain_lut__9p5GHz__lowbias_vdd_2p5.xlsx',
-    #                        r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_0p5_pm_1p5_pm2_3_abs_gain_12p5__lowbias__vdd_2p5.xlsx')
-    orion_hal.init_lut_new(r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/tx_phase_lut_9p5_pm_0p5_gm_0p4.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__rx2__gain_lut__9p5GHz__lowbias_00__vdd_2p7_with_avg_for_dual_lut.xlsx',
-                           r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2_rx0_phase_lut_freq_9p5_gm_0p5_pm_1p4_pm2_5_abs_gain_15__lowbias_00__vdd_2p5.xlsx')
+    orion_hal.init_lut_new(r'../final_lut/TX_Gain_LUT_10p5GHz.xlsx',
+                           r'../final_lut/tx_v2__phase_lut_freq_14p25_gm_0p5_pm_1p5_pm2_4_abs_gain_8__maxbias__vdd_2p7.xlsx',
+                           r'../final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
+                           r'../final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx',
+                           r'../final_lut/v2__rx2__gain_lut__9p5GHz__lowbias_00__vdd_2p7_with_avg_for_dual_lut.xlsx',
+                           r'../final_lut/v2_rx0_phase_lut_freq_9p5_gm_0p5_pm_1p4_pm2_5_abs_gain_15__lowbias_00__vdd_2p5.xlsx')
 else:
     orion_hal.init_lut_new(r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
                            r'C:/Users/silic/OneDrive/Documents/GitHub/orion/results/LUT/tx_phase_lut_9p5_pm_0p5_gm_0p4.xlsx',
@@ -178,7 +172,7 @@ for g_idx in range (0,64,1):
     else:
         # band = '9G'
         orion_hal.set_freq('9G')
-        orion_hal.init_rx('LOW')
+        orion_hal.init_rx('NOM')
 
     orion_hal.set_lut_idx(4,g_idx,0xF)
     orion_hal.stg2_load()
