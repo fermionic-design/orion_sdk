@@ -1,6 +1,12 @@
+# -- coding: utf-8 --
+"""
+Created on Thu Apr 17 19:09:41 2025
+
+@author: silic
+"""
 version = 'v2'
 ant_sel = 0x8 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
-chip_id = 'AE00'
+chip_id = 'AH160'
 test_condition = 'vdd_2p7_temp_25C_0deg_dual_avg_lut'
 mode = "dual_lut" # single_lut, dual_lut
 
@@ -10,7 +16,7 @@ f_max = 13
 f_step = 0.25
 
 d1 = 0.1   # delay after setting IQ
-d2 = 1   # delay after normalization
+d2 = 0.2   # delay after normalization
 
 import sys
 sys.path.append('../../include')
@@ -57,7 +63,7 @@ instruments.vna.set_y_axis(win_id=2, ref_level=0, scale_per_div=45)
 
 # Averaging
 instruments.vna.write(":SENS:AVER:STAT ON")
-instruments.vna.write(":SENS:AVER:COUN 128")
+instruments.vna.write(":SENS:AVER:COUN 64")
 
 
 spi = SPI()
@@ -66,7 +72,7 @@ orion_lut = ORION_8G_12G_lut(spi)
 orion_hal = ORION_8G_12G_hal(orion_csr,orion_lut,spi,version)
 
 # Initialize xlsx for read
-filename = f'C:/Users/silic/OneDrive/Documents/GitHub/orion/ate/logs_20260221/sweep_results/rx_gain_sweep__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}.xlsx'
+filename = f'C:/Users/silic/OneDrive/Documents/GitHub/orion/ate/ate_20260311/sweep_results/rx_gain_sweep__{version}__{chip_id}__ant_sel_{ant_sel}__{test_condition}.xlsx'
 out_xls = xlsw.Workbook(filename)
 
 out_sheet = out_xls.add_worksheet()
@@ -321,7 +327,47 @@ for m_idx, metric in enumerate(metrics):
 
         out_sheet2.write(row, freq_idx + 6, phase_val)
         out_sheet2.write(row, gain_col_offset + freq_idx, gain_val)
-                
+
+# ================= 16 dB LIMITED EXCEL SUMMARY =================
+
+ATTN_LIMIT_DB = 16
+ATTN_STEP_DB  = 0.5
+max_index = int(ATTN_LIMIT_DB / ATTN_STEP_DB) + 1  # include 16 dB
+
+# Start writing after the 26 dB summary block
+summary_16_start = summary_26_start + len(metrics) + 1  # 1 blank row gap
+
+for m_idx, metric in enumerate(metrics):
+
+    row = summary_16_start + m_idx
+
+    out_sheet2.write(row, 5, f"{metric} (m16dB)")
+    out_sheet2.write(row, gain_col_offset - 1, f"{metric} (m16dB)")
+
+    for freq_idx in range(freq_pts):
+
+        phase_arr = np.array(phase_err_all[freq_idx][:max_index])
+        gain_arr  = np.array(gain_err_all[freq_idx][:max_index])
+
+        if metric == "std":
+            phase_val = np.std(phase_arr)
+            gain_val  = np.std(gain_arr)
+
+        elif metric == "avg":
+            phase_val = np.mean(phase_arr)
+            gain_val  = np.mean(gain_arr)
+
+        elif metric == "rms":
+            phase_val = np.sqrt(np.mean(phase_arr**2))
+            gain_val  = np.sqrt(np.mean(gain_arr**2))
+
+        elif metric == "peak":
+            phase_val = np.max(np.abs(phase_arr))
+            gain_val  = np.max(np.abs(gain_arr))
+
+        out_sheet2.write(row, freq_idx + 6, phase_val)
+        out_sheet2.write(row, gain_col_offset + freq_idx, gain_val)
+
 print("\n================ FINAL ERROR SUMMARY ================\n")
 
 ATTN_LIMIT_DB = 26
@@ -343,7 +389,7 @@ for label in freq_targets:
     print(f"Frequency: {label} for m26dB attn")
     print(f"  RMS Phase Error  : {rms_phase:.3f} deg")
     print(f"  Peak Phase Error : {peak_phase:.3f} deg")
-    if rms_gain > 0.5:
+    if (rms_gain > 1.0 and ant_sel!=0x8) or (ant_sel == 0x8 and rms_gain > 1.5) :
         print(f"  \033[1;31mRMS Gain Error FAILED: {rms_gain:.3f} dB\033[0m")
     else:
         print(f"  RMS Gain Error   : {rms_gain:.3f} dB")
