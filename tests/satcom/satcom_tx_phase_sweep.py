@@ -12,7 +12,7 @@ d1 = 0.3   # delay after setting IQ
 d2 = 0.5   # delay after normalization
 
 import sys
-sys.path.append('../include')
+sys.path.append('../../include')
 
 from libs.instruments import instruments
 from ORION_8G_12G import *

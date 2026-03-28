@@ -19,7 +19,7 @@ d1 = 0.1   # delay after setting IQ
 d2 = 0.2   # delay after normalization
 
 import sys
-sys.path.append('../include')
+sys.path.append('../../include')
 
 from libs.instruments import instruments
 import ORION_RF_CONTROL_FUNC as RF_CTRL_FUNC
