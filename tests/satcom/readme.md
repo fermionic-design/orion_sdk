@@ -14,5 +14,7 @@ Lines: 8 (ant_sel), 12,13 (ph/gain index)
 7. RX Phase Change
 8. RX P1dB (set g_idx to 0)
 
-Code: TODO
-9. SAR ADC
+Code: [sar_adc.py](sar_adc.py)
+9. SAR ADC (Along with VDD2p7 connection, connect the JP13(GP7) pin to external Vin supply, run the code, sar adc code will get displayed)
+           (to change the adc input you can select either of one gp4/gp5/gp6/gp7)
+           (SAR ADC output will vary from 0 to 511 depending upon Vin)
