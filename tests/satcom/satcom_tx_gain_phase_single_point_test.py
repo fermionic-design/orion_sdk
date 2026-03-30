@@ -2,8 +2,8 @@ version = 'v2'
 ant_sel = 0x2
 chip_id = 'AB40'
 test_condition = 'max_bias_at_inp_p1dB_0dB_attn'
-p_idx=4
-g_idx=53 # Use g_idx=0 for 0dB attenuation, g_idx=53 for 16dB attenuation
+p_idx = 4   # 4...124
+g_idx = 53  # Use g_idx=0 for 0dB attenuation, g_idx=53 for 16dB attenuation
 
 d1 = 1   # delay after setting IQ
 
