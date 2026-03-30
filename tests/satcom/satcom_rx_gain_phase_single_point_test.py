@@ -12,13 +12,7 @@ mode = "dual_lut" # single_lut, dual_lut
 p_idx=8
 g_idx=0
 
-f = 9.5
-f_min = 7
-f_max = 13
-f_step = 0.25
-
 d1 = 0.1   # delay after setting IQ
-d2 = 0.2   # delay after normalization
 
 import sys
 sys.path.append('../../include')
