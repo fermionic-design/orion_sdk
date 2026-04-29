@@ -9,7 +9,7 @@ Setup:
 Vsup = 2.5-3.3V (nominal - 2.7V)
 Feed any input power from -20dBm to 16dBm through Signal generator to DETx port,set any freq from 8-12GHz
 and record the SAR ADC output
-While testing a particular DET, other 3 DETs should be 50 ohm terminated and other RF ports need not be terminated.
+Line no: 112, give proper detector channel as input -  0 for DET0, 1 for DET1, 2 for DET2 and 3 for DET3
 """
 
 import sys
@@ -111,6 +111,21 @@ reset_all_det_sel()
     
 adc_rf_only = measure_rf_only_adc(orion,3) # 0 for DET0, 1 for DET1, 2 for DET2 and 3 for DET3
 print("SAR ADC Output (RF Component)  :", adc_rf_only)
+
+spi.tr_reset()
+time.sleep(0.5)
+spi.tr_set()
+time.sleep(0.5)
+
+flash_adc_output_DET0 = (orion.DET_0_1_ADC_OUT_BIN.read() & 0x7)
+flash_adc_output_DET1 = ((orion.DET_0_1_ADC_OUT_BIN.read() & 0x38) >> 3)
+flash_adc_output_DET2 = (orion.DET_2_3_ADC_OUT_BIN.read() & 0x7)
+flash_adc_output_DET3 = ((orion.DET_2_3_ADC_OUT_BIN.read() & 0x38) >> 3)
+
+print('Flash ADC Output DET0:', flash_adc_output_DET0)
+print('Flash ADC Output DET1:', flash_adc_output_DET1)
+print('Flash ADC Output DET2:', flash_adc_output_DET2)
+print('Flash ADC Output DET3:', flash_adc_output_DET3)
 
 reset_all_det_sel()
 spi.close()      
