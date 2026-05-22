@@ -5,7 +5,7 @@ Created on Thu Apr 17 19:09:41 2025
 @author: silic
 """
 version = 'v2'
-ant_sel = 0x1 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
+ant_sel = 0x4 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
 chip_id = 'AB40'
 test_condition = 'vdd_2p7_temp_25C_0deg_dual_avg_lut'
 mode = "dual_lut" # single_lut, dual_lut
@@ -52,14 +52,14 @@ orion_csr.REVISION.read()
 print('major_revision = '+hex(orion_csr.REVISION.major_rev))
 print('minor_revision = '+hex(orion_csr.REVISION.minor_rev))
 
-orion_hal.set_tr_mode('INT_TR')
+orion_hal.set_tr_mode('EXT_TR')
 orion_hal.set_trx_mode(1)
 orion_hal.init_tx('MAX')
 orion_hal.set_tr_mask(tx_mask=ant_sel)
-orion_hal.cfg_stg2_load('PIN')
+orion_hal.cfg_stg2_load('REG')
 orion_hal.en_data_path(1)
 orion_hal.set_lut_idx(p_idx,g_idx,ant_sel)
-# orion_hal.stg2_load()
+orion_hal.stg2_load()
 time.sleep(d1)
 
 spi.close()
