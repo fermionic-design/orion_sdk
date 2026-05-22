@@ -8,7 +8,7 @@ Created on Thu Dec 21 14:27:30 2023
 Setup: 
 Vsup = 2.5-3.3V (nominal - 2.7V)
 Feed any input power from -20dBm to 16dBm through Signal generator to DETx port,set any freq from 8-12GHz
-and record the SAR ADC output, Flash ADC output
+and record the SAR ADC output
 Line no: 112, give proper detector channel as input -  0 for DET0, 1 for DET1, 2 for DET2 and 3 for DET3
 """
 
