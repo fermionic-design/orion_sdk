@@ -5,7 +5,7 @@ Created on Thu Apr 17 19:09:41 2025
 @author: silic
 """
 version = 'v2'
-ant_sel = 0x8 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
+ant_sel = 0x2 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
 chip_id = 'AB40'
 test_condition = 'vdd_2p7_temp_25C_0deg_dual_avg_lut'
 mode = "dual_lut" # single_lut, dual_lut

@@ -623,7 +623,7 @@ class ORION_8G_12G_hal:
         if (RX_BIAS_MODE == 'LOW'):
             if self.version == 'v2':
                 self.set_rx_cmb_icurr(0, ant_sel=ant_sel)
-                self.set_rx_cmb_qcurr(0, ant_sel=ant_sel)
+                self.set_rx_cmb_qcurr(2, ant_sel=ant_sel)
             else:
                 self.set_rx_cmb_icurr(0, ant_sel=ant_sel)
                 self.set_rx_cmb_qcurr(0, ant_sel=ant_sel)
@@ -823,12 +823,12 @@ class ORION_8G_12G_hal:
     
         if rx_mask is not None:
             self.orion_csr.TR_MASK.rx_mask = rx_mask
-            print(f"🛠️ TR_MASK.rx_mask set to 0x{rx_mask:X}")
+            print(f"TR_MASK.rx_mask set to 0x{rx_mask:X}")
     
         if tx_mask is not None or rx_mask is not None:
             self.orion_csr.TR_MASK.write()
         else:
-            print("⚠️ No changes made to TR_MASK (both tx_mask and rx_mask were None)")
+            print("No changes made to TR_MASK (both tx_mask and rx_mask were None)")
     
     def cfg_stg2_load(self,value):
         if value == 'PIN':
@@ -1059,4 +1059,86 @@ class ORION_8G_12G_hal:
         adc_output = (adc_msb << 8) | adc_lsb
         return adc_output
 
-    #TODO: DET
+    def reset_all_det_sel(self):
+        self.orion_csr.POWER_DET_CFG.det0_sel = 0
+        self.orion_csr.POWER_DET_CFG.det1_sel = 0
+        self.orion_csr.POWER_DET_CFG.det2_sel = 0
+        self.orion_csr.POWER_DET_CFG.det3_sel = 0
+        self.orion_csr.POWER_DET_CFG.write()
+        
+    def set_enable_pkdet(self, enable):
+        self.orion_csr.TR_CTRL_2.det_en_force= (enable & 0x0F)
+        self.orion_csr.TR_CTRL_2.det_en_force_val=(enable & 0x0F)
+        self.orion_csr.TR_CTRL_2.write()
+    
+    def set_detector_channel(self, det_mask, det_sel):
+        # if det_sel not in [1, 2]:
+        #     raise ValueError("Invalid det_sel. Use 1 (RF+Bias), or 2 (Bias only).")
+
+        self.reset_all_det_sel()
+        
+        if det_mask & 0x1:
+            self.orion_csr.POWER_DET_CFG.det0_sel = det_sel
+
+        if det_mask & 0x2:
+            self.orion_csr.POWER_DET_CFG.det1_sel = det_sel
+    
+        if det_mask & 0x4:
+            self.orion_csr.POWER_DET_CFG.det2_sel = det_sel
+    
+        if det_mask & 0x8:
+            self.orion_csr.POWER_DET_CFG.det3_sel = det_sel
+
+        self.orion_csr.POWER_DET_CFG.write()
+
+    def read_flash_adc_output(self, det_mask):
+
+        if det_mask & 0x3:  # DET0 or DET1
+            reg01 = self.orion_csr.DET_0_1_ADC_OUT_BIN.read()
+
+            if det_mask & 0x1:
+                return reg01 & 0x7
+
+            else:  # det_mask must be 0x2
+                return (reg01 & 0x38) >> 3
+
+        else:  # DET2 or DET3
+            reg23 = self.orion_csr.DET_2_3_ADC_OUT_BIN.read()
+
+            if det_mask & 0x4:
+                return reg23 & 0x7
+
+            else:  # det_mask must be 0x8
+                return (reg23 & 0x38) >> 3
+
+    def send_temp_to_adc(self, tempsense_to_adc_input):
+        "function to send Ptat or Ztat temperature to ADC input"
+        # tempsense_to_adc_input can be "none", "ptat" or "ztat"
+        # "none" disables connection to ADC input
+        # "ptat" enables connection of PTAT voltage to ADC input
+        # "ztat" enables connection of ZTAT voltage to ADC input
+
+        if (tempsense_to_adc_input == "none"):
+            self.orion_csr.REG0_BGR.bgr_to_adc_ptat_volt_en = 0x0
+            self.orion_csr.REG0_BGR.bgr_to_adc_ztat_volt_en = 0x0
+            self.orion_csr.REG0_ADC.en_temp_sense_to_adc_sw = 0x0
+        elif (tempsense_to_adc_input == "ptat"):
+            self.orion_csr.REG0_BGR.bgr_to_adc_ptat_volt_en = 0x1
+            self.orion_csr.REG0_BGR.bgr_to_adc_ztat_volt_en = 0x0
+            self.orion_csr.REG0_ADC.en_temp_sense_to_adc_sw = 0x1
+        elif (tempsense_to_adc_input == "ztat"):
+            self.orion_csr.REG0_BGR.bgr_to_adc_ptat_volt_en = 0x0
+            self.orion_csr.REG0_BGR.bgr_to_adc_ztat_volt_en = 0x1
+            self.orion_csr.REG0_ADC.en_temp_sense_to_adc_sw = 0x1
+        else:
+            print("Unknown argument, tempsense_to_adc_input can only be ptat, ztat or none")
+        self.orion_csr.REG0_BGR.write()
+        self.orion_csr.REG0_ADC.write()
+
+    def send_gp7_to_adc(self, gp7_to_adc_input):
+        "function to connect GP7 pin to ADC input"
+        # 0 disconnects GP7 to ADC input
+        # 1 connects GP7 to ADC Input
+
+        self.orion_csr.REG0_ADC.en_gp7_to_adc_sw = (gp7_to_adc_input & 0x01)
+        self.orion_csr.REG0_ADC.write()

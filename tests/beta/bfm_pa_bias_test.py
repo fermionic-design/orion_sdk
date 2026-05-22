@@ -11,7 +11,7 @@ Connections: Connect the PA_BIASx pin to a multimeter to observe the voltage cha
 version = 'v2'
 import sys
 import serial
-sys.path.append('../include')
+sys.path.append('../../include')
 from ORION_8G_12G import *
 from SPI import *
     
@@ -19,7 +19,7 @@ spi = SPI()
 orion = ORION_8G_12G(spi)
 
 # Set tx_mask as 1 for pa0 and tx0, 2 for pa1 and tx1, 4 for pa2 and tx2, 8 for pa3 and tx3
-orion.TR_MASK.tx_mask = 0x1
+orion.TR_MASK.tx_mask = 0x8
 orion.TR_MASK.write()
 
 orion.DAC_CTRL_PA0.DAC_CTRL_PA0 = 127 # 0 corresponds to -2.5V
