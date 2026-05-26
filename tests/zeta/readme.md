@@ -7,7 +7,7 @@ Code: [c:\Users\silic\GitHub\orion_sdk\tests\zeta\tx_gain_phase_single_point_tes
 3. TX Gain Change
 4. TX Phase Change
 
-Code: [C:\Users\silic\GitHub\orion_sdk\tests\zeta\rx_gain_phase_single_point_test.py](rx_gain_phase_single_point_test.py)""
+Code: [C:\Users\silic\GitHub\orion_sdk\tests\zeta\rx_gain_phase_single_point_test.py](rx_gain_phase_single_point_test.py)
 Lines: 8 (ant\_sel), 12,13 (ph/gain index)
 1. RX NF (set g\_idx to 0)
 2. RX Gain Change
@@ -47,3 +47,9 @@ Code: [c:\Users\silic\GitHub\orion_sdk\tests\zeta\tr_switch_with_tx_rx_bias_with
 This code should be run when you are using external TR signal
 Line no 492, give ant sel no
 Droop was seen to be 0.04dB and PSat was 16.9+1.7dBm
+
+Download Pycharm: https://www.jetbrains.com/pycharm/download/?section=windows exe file for windows
+Github access to be given by Fermionic
+Please work on the zeta folder for your validation
+Download Github: https://desktop.github.com/download/
+Setup Github by referring this document: [Get started with GITHUB account and repository.pdf](Get%20started%20with%20GITHUB%20account%20and%20repository.pdf)
