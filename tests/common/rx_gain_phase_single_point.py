@@ -67,7 +67,7 @@ if mode == "dual_lut":
         orion_hal.init_rx('LOW')
 else:
     orion_hal.set_freq('9G')
-    orion_hal.init_rx('NOM')
+    orion_hal.init_rx('LOW')
 
 orion_hal.set_lut_idx(p_idx,g_idx,ant_sel)
 orion_hal.stg2_load()

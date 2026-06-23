@@ -9,7 +9,7 @@ Setup: VDD_2P7-2.7V, VDD_NEG-m5V
 Connections: Connect the PA_BIASx pin to a multimeter to observe the voltage change before and after pressing enter (x can be 0,1,2,3)
 """
 version = 'v2'
-ant_sel=0x8
+ant_sel=0x1
 import sys
 import serial
 

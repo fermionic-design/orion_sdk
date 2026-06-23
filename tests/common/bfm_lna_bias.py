@@ -12,7 +12,7 @@ Run the code and observe the waveforms in DSO
 
 import sys
 import serial
-sys.path.append('../include')
+sys.path.append('../../include')
 from ORION_8G_12G import *
 from SPI import *
     

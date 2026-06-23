@@ -1,20 +1,20 @@
 version = 'v2'
-ant_sel = 0x2
-chip_id = 'AB40'
-test_condition = 'max_bias_at_inp_p1dB_0dB_attn'
+ant_sel = 0x1
+chip_id = 'demo'
+test_condition = 'max_bias_at_0dB_attn'
 
-f = 14.25
-f_min = 10.0
-f_max = 16.0
+f = 8.5
+f_min = 7
+f_max = 13
 f_step = 0.25
 
-d1 = 0.3   # delay after setting IQ
-d2 = 0.5   # delay after normalization
+d1 = 0.1   # delay after setting IQ
+d2 = 0.2   # delay after normalization
 
 import sys
-sys.path.append('../include')
+sys.path.append('../../include')
 
-from libs.instruments import instruments
+from libs.fd_cmn.instruments.instruments import instruments
 from ORION_8G_12G import *
 from ORION_8G_12G_lut import *
 from ORION_8G_12G_hal import *
@@ -39,17 +39,17 @@ instruments = instruments(required_instruments=['vna'])
 instruments.vna.init()
 instruments.vna.cfg(1, 'S21_GAIN')
 instruments.vna.cfg(2, 'S21_PHASE')
-instruments.vna.cfg_freq(start=10e9, stop=16e9, step=250e6)
-instruments.vna.cfg_pwr(pwr=1.727)
-# instruments.vna.cfg_pwr(pwr=10)
+instruments.vna.cfg_freq(start=7e9, stop=13e9, step=250e6)
+# instruments.vna.cfg_pwr(pwr=1.727)
+instruments.vna.cfg_pwr(pwr=8)
 
-instruments.vna.add_marker(win_id=1, marker_id=1, val=14e9)
-instruments.vna.add_marker(win_id=1, marker_id=2, val=14.25e9)
-instruments.vna.add_marker(win_id=1, marker_id=3, val=14.5e9)
+instruments.vna.add_marker(win_id=1, marker_id=1, val=9e9)
+instruments.vna.add_marker(win_id=1, marker_id=2, val=10e9)
+instruments.vna.add_marker(win_id=1, marker_id=3, val=11e9)
 
-instruments.vna.add_marker(win_id=2, marker_id=1, val=14e9)
-instruments.vna.add_marker(win_id=2, marker_id=2, val=14.25e9)
-instruments.vna.add_marker(win_id=2, marker_id=3, val=14.5e9)
+instruments.vna.add_marker(win_id=2, marker_id=1, val=9e9)
+instruments.vna.add_marker(win_id=2, marker_id=2, val=10e9)
+instruments.vna.add_marker(win_id=2, marker_id=3, val=11e9)
 
 instruments.vna.set_y_axis(win_id=1, ref_level=0, scale_per_div=5)
 instruments.vna.set_y_axis(win_id=2, ref_level=0, scale_per_div=45)
@@ -64,12 +64,14 @@ orion_csr = ORION_8G_12G(spi)
 orion_lut = ORION_8G_12G_lut(spi)
 orion_hal = ORION_8G_12G_hal(orion_csr,orion_lut,spi,version)
 
-orion_hal.init_lut_new(r'../final_lut/TX_Gain_LUT_10p5GHz.xlsx',
-                       r'../final_lut/tx_v2__phase_lut_freq_14p25_gm_0p5_pm_1p5_pm2_4_abs_gain_8__maxbias__vdd_2p7.xlsx',
+orion_hal.init_lut_new(r'../final_lut/v2__tx__gain_lut__8p5GHz__maxbias__vdd_2p7_at_i500_q4.xlsx',
+                       # r'C:/Users/silic/GitHub/orion/results/LUT/tx_v2__phase_lut_freq_14p25_gm_0p5_pm_1p5_pm2_4_abs_gain_8__maxbias__vdd_2p7.xlsx',
+                       r'../final_lut/v2__tx_phase_lut__freq_8p5__gm_0p5__pm_1p5__pm2_3__abs_gain_7p5__nom__vdd_2p7.xlsx',
+                       # r'C:/Users/silic/OneDrive/Documents/GitHub/orion/final_lut/v2__tx_phase_lut__freq_9p5__gm_0p5__pm_1p5__pm2_3__abs_gain_6p5__low__vdd_2p5.xlsx',
                        r'../final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
                        r'../final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx',
-                       r'../final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
-                       r'../final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx')
+                       r'../final_lut/v2__rx2__gain_lut__9p5GHz__lowbias_00__vdd_2p7_with_avg_for_dual_lut.xlsx',
+                       r'../final_lut/v2_rx0_phase_lut_freq_9p5_gm_0p5_pm_1p4_pm2_5_abs_gain_15__lowbias_00__vdd_2p5.xlsx')
 
 orion_hal.set_tr_mode('INT_TR')
 orion_hal.set_trx_mode(1)
@@ -83,7 +85,8 @@ orion_hal.set_lut_idx(4,0,ant_sel)
 orion_hal.stg2_load()
 time.sleep(d1)
 instruments.vna.write(":SENS:AVER:CLE")          # Clear averaging
-instruments.vna.query("*OPC?")
+# instruments.vna.query("*OPC?")
+time.sleep(0.3)
 instruments.vna.norm(win_id=2)
 time.sleep(d2)
 
