@@ -1,14 +1,8 @@
-# -- coding: utf-8 --
-"""
-Created on Thu Apr 17 19:09:41 2025
-
-@author: silic
-"""
+# For tx testing, first load a gain and phase through 'REG' and stg2 load, then normalise the gain and phase in vna
+# and then change the p_idx/g_idx to some other value,and comment out line no 56 and input 'PIN' in line no 52 and run
+# the code again. Now  connect the txl pin to VDDIO to see the gain/phase change in VNA.
 version = 'v2'
 ant_sel = 0x4 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
-chip_id = 'AB40'
-test_condition = 'vdd_2p7_temp_25C_0deg_dual_avg_lut'
-mode = "dual_lut" # single_lut, dual_lut
 
 p_idx = 4  # 4...124
 g_idx = 0   # 0...63
@@ -60,6 +54,5 @@ orion_hal.cfg_stg2_load('REG')
 orion_hal.en_data_path(1)
 orion_hal.set_lut_idx(p_idx,g_idx,ant_sel)
 orion_hal.stg2_load()
-time.sleep(d1)
 
 spi.close()
