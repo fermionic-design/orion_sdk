@@ -104,7 +104,7 @@ def disconnect():
     update_status_bar()
 
 
-def init_rf(bias_mode, tr_mode, trx_mode, rf_en):
+def init_rf(bias_mode, tr_mode, trx_mode, stg2_load_cfg, rf_en):
     global orion_hal
     # print(f'Init RF: {bias_mode}')
 
@@ -181,7 +181,7 @@ def init_rf(bias_mode, tr_mode, trx_mode, rf_en):
         orion_hal.set_trx_mode(0)
 
     orion_hal.set_tr_mask(rx_mask=0x1)
-    orion_hal.cfg_stg2_load('REG')
+    orion_hal.cfg_stg2_load('REG' if stg2_load_cfg == 'Register' else 'PIN')
     orion_hal.enable_rx_correction(1)
     orion_hal.en_data_path(1)
 
@@ -203,6 +203,11 @@ def change_trx_mode(trx_mode):
         orion_hal.set_trx_mode(0)
     else:
         orion_hal.set_trx_mode(1)
+
+
+def change_stg2_load_cfg(stg2_load_cfg):
+    print(f'STG2 Load Cfg: {stg2_load_cfg}')
+    orion_hal.cfg_stg2_load('REG' if stg2_load_cfg == 'Register' else 'PIN')
 
 
 def load_rf(rf_en, rf_gain_entries, rf_phase_entries, pa_on_bias_entries, pa_off_bias_entries, lna_on_bias_entries,
@@ -236,6 +241,25 @@ def load_rf(rf_en, rf_gain_entries, rf_phase_entries, pa_on_bias_entries, pa_off
                                   round(int(rf_gain_entries[0].get()) / 0.5), ant_sel<<1)
             # orion_hal.set_lut_idx(round(abs(rf_phase_entries[i].get())/2.975)+4, round((int(rf_gain_entries[i].get())+1)/0.5), ant_sel)
         orion_hal.stg2_load()
+
+
+def update_bias(rf_en, pa_on_bias_entries, pa_off_bias_entries, lna_on_bias_entries, lna_off_bias_entries):
+    global orion_hal
+    print('Update Bias')
+
+    ch_sel = 0
+    dac_vals = {}
+    for i in range(4):
+        ch_sel |= rf_en[i].get() << i
+        dac_vals[f'PA{i}'] = int(pa_on_bias_entries[i].get())
+        dac_vals[f'PA{i}_PDN'] = int(pa_off_bias_entries[i].get())
+        dac_vals[f'LNA{i}'] = int(lna_on_bias_entries[i].get())
+        dac_vals[f'LNA{i}_PDN'] = int(lna_off_bias_entries[i].get())
+        print(f'CH[{i}]: En: {rf_en[i].get()}\t\tPA_ON: {dac_vals[f"PA{i}"]}\t\tPA_OFF: {dac_vals[f"PA{i}_PDN"]}'
+              f'\t\tLNA_ON: {dac_vals[f"LNA{i}"]}\t\tLNA_OFF: {dac_vals[f"LNA{i}_PDN"]}')
+
+    print(f'ch_sel = {bin(ch_sel)}')
+    orion_hal.dac_cfg(ch_sel, ch_sel, **dac_vals)
 
 
 def adc_setup(osc_en, adc_sel):
@@ -512,28 +536,29 @@ def display__tab_rf():
     combobox__bias_mode = ttk.Combobox(tab_rf, values=['Normal', 'Low Power'], state="readonly")
     combobox__bias_mode.grid(column=1, row=0, padx=5, pady=5, sticky="nsew")
     combobox__bias_mode.current(0)
-    ttk.Button(tab_rf, text="Initialize RF",
-               command=lambda: init_rf(combobox__bias_mode.get(), combobox__tr_mode.get(), combobox__trx_mode.get(),
-                                       rf_en)).grid(column=2, row=0, padx=5, pady=5, sticky="nsew")
 
-    ttk.Label(tab_rf, text='TR Control Mode').grid(column=3, row=0, padx=5, pady=5, sticky="nsew")
+    ttk.Label(tab_rf, text='TR Control Mode').grid(column=2, row=0, padx=5, pady=5, sticky="nsew")
     combobox__tr_mode = ttk.Combobox(tab_rf, values=['Register', 'TR Pin'], state="readonly")
-    combobox__tr_mode.grid(column=4, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__tr_mode.grid(column=3, row=0, padx=5, pady=5, sticky="nsew")
     combobox__tr_mode.current(0)
     combobox__tr_mode.bind("<<ComboboxSelected>>", lambda event: change_tr_mode(combobox__tr_mode.get()))
-    ttk.Label(tab_rf, text='TRX Mode').grid(column=5, row=0, padx=5, pady=5, sticky="nsew")
+    ttk.Label(tab_rf, text='TRX Mode').grid(column=4, row=0, padx=5, pady=5, sticky="nsew")
     combobox__trx_mode = ttk.Combobox(tab_rf, values=['TX', 'RX'], state="readonly")
-    combobox__trx_mode.grid(column=6, row=0, padx=5, pady=5, sticky="nsew")
-    combobox__trx_mode.current(0)
+    combobox__trx_mode.grid(column=5, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__trx_mode.current(1)
     combobox__trx_mode.bind("<<ComboboxSelected>>", lambda event: change_trx_mode(combobox__trx_mode.get()))
 
-    ttk.Button(tab_rf, text="Load RF",
-               command=lambda: load_rf(rf_en, rf_gain_entries, rf_phase_entries, pa_on_bias_entries,
-                                       pa_off_bias_entries, lna_on_bias_entries, lna_off_bias_entries)).grid(column=7,
-                                                                                                             row=0,
-                                                                                                             padx=5,
-                                                                                                             pady=5,
-                                                                                                             sticky="nsew")
+    ttk.Label(tab_rf, text='STG2 Load Config').grid(column=6, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__stg2_load_cfg = ttk.Combobox(tab_rf, values=['Register', 'Load Pin'], state="readonly")
+    combobox__stg2_load_cfg.grid(column=7, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__stg2_load_cfg.current(0)
+    combobox__stg2_load_cfg.bind("<<ComboboxSelected>>",
+                                  lambda event: change_stg2_load_cfg(combobox__stg2_load_cfg.get()))
+
+    ttk.Button(tab_rf, text="Initialize RF",
+               command=lambda: init_rf(combobox__bias_mode.get(), combobox__tr_mode.get(), combobox__trx_mode.get(),
+                                       combobox__stg2_load_cfg.get(), rf_en)).grid(column=8, row=0, padx=5, pady=5,
+                                                                                   sticky="nsew")
 
     ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=1, columnspan=8, sticky='ew', pady=5)
 
@@ -552,27 +577,37 @@ def display__tab_rf():
         rf_phase_entries[i].insert(0, "0")
         ttk.Label(tab_rf, text=f"CH{i} Phase").grid(column=2 * i, row=4, padx=5, pady=5, sticky="w")
 
-        ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=5, columnspan=8, sticky='ew', pady=5)
+        ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=6, columnspan=8, sticky='ew', pady=5)
 
-        ttk.Label(tab_rf, text=f"CH{i} PA ON Bias").grid(column=2 * i, row=6, padx=5, pady=5, sticky="w")
+        ttk.Label(tab_rf, text=f"CH{i} PA ON Bias").grid(column=2 * i, row=7, padx=5, pady=5, sticky="w")
         pa_on_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
         pa_on_bias_entries[i].insert(0, "100")
-        pa_on_bias_entries[i].grid(column=2 * i + 1, row=6, padx=5, pady=5)
+        pa_on_bias_entries[i].grid(column=2 * i + 1, row=7, padx=5, pady=5)
 
-        ttk.Label(tab_rf, text=f"CH{i} PA OFF Bias").grid(column=2 * i, row=7, padx=5, pady=5, sticky="w")
+        ttk.Label(tab_rf, text=f"CH{i} PA OFF Bias").grid(column=2 * i, row=8, padx=5, pady=5, sticky="w")
         pa_off_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
         pa_off_bias_entries[i].insert(0, "200")
-        pa_off_bias_entries[i].grid(column=2 * i + 1, row=7, padx=5, pady=5)
+        pa_off_bias_entries[i].grid(column=2 * i + 1, row=8, padx=5, pady=5)
 
-        ttk.Label(tab_rf, text=f"CH{i} LNA ON Bias").grid(column=2 * i, row=8, padx=5, pady=5, sticky="w")
+        ttk.Label(tab_rf, text=f"CH{i} LNA ON Bias").grid(column=2 * i, row=9, padx=5, pady=5, sticky="w")
         lna_on_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
         lna_on_bias_entries[i].insert(0, "100")
-        lna_on_bias_entries[i].grid(column=2 * i + 1, row=8, padx=5, pady=5)
+        lna_on_bias_entries[i].grid(column=2 * i + 1, row=9, padx=5, pady=5)
 
-        ttk.Label(tab_rf, text=f"CH{i} LNA OFF Bias").grid(column=2 * i, row=9, padx=5, pady=5, sticky="w")
+        ttk.Label(tab_rf, text=f"CH{i} LNA OFF Bias").grid(column=2 * i, row=10, padx=5, pady=5, sticky="w")
         lna_off_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
         lna_off_bias_entries[i].insert(0, "200")
-        lna_off_bias_entries[i].grid(column=2 * i + 1, row=9, padx=5, pady=5)
+        lna_off_bias_entries[i].grid(column=2 * i + 1, row=10, padx=5, pady=5)
+
+    ttk.Button(tab_rf, text="Load RF",
+               command=lambda: load_rf(rf_en, rf_gain_entries, rf_phase_entries, pa_on_bias_entries,
+                                       pa_off_bias_entries, lna_on_bias_entries,
+                                       lna_off_bias_entries)).grid(column=0, row=5, padx=5, pady=5, sticky="nsew")
+
+    ttk.Button(tab_rf, text="Update Bias",
+               command=lambda: update_bias(rf_en, pa_on_bias_entries, pa_off_bias_entries, lna_on_bias_entries,
+                                           lna_off_bias_entries)).grid(column=0, row=11, padx=5, pady=5,
+                                                                       sticky="nsew")
 
     tab_rf.after(100, lambda: remove_chkbox_selection(rf_chk))
 
