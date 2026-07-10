@@ -1,0 +1,357 @@
+reg_name,field_name,bits,addr,sw_attr,hw_attr,rst_val,reg_attr,description
+DEVICE_ID,device_id,7:0,0,r,w,8'hF2,,Device Identifier
+REVISION,major_rev,3:0,1,r,w,4'h1,,Major Revision
+REVISION,minor_rev,7:4,1,r,w,4'h1,,Minor Revision
+PHASE_CODE_TX0,phase_code_tx0,6:0,2,rw,r,'0,::update::sync_rst,Phase Code for TX0
+GAIN_CODE_TX0,gain_code_tx0,5:0,3,rw,r,'0,::update::sync_rst,Gain Code for TX0
+PHASE_CODE_TX1,phase_code_tx1,6:0,4,rw,r,'0,::update::sync_rst,Phase Code for TX1
+GAIN_CODE_TX1,gain_code_tx1,5:0,5,rw,r,'0,::update::sync_rst,Gain Code for TX1
+PHASE_CODE_TX2,phase_code_tx2,6:0,6,rw,r,'0,::update::sync_rst,Phase Code for TX2
+GAIN_CODE_TX2,gain_code_tx2,5:0,7,rw,r,'0,::update::sync_rst,Gain Code for TX2
+PHASE_CODE_TX3,phase_code_tx3,6:0,8,rw,r,'0,::update::sync_rst,Phase Code for TX3
+GAIN_CODE_TX3,gain_code_tx3,5:0,9,rw,r,'0,::update::sync_rst,Gain Code for TX3
+PHASE_CODE_RX0,phase_code_rx0,6:0,10,rw,r,'0,::update::sync_rst,Phase Code for RX0
+GAIN_CODE_RX0,gain_code_rx0,5:0,11,rw,r,'0,::update::sync_rst,Gain Code for RX0
+PHASE_CODE_RX1,phase_code_rx1,6:0,12,rw,r,'0,::update::sync_rst,Phase Code for RX1
+GAIN_CODE_RX1,gain_code_rx1,5:0,13,rw,r,'0,::update::sync_rst,Gain Code for RX1
+PHASE_CODE_RX2,phase_code_rx2,6:0,14,rw,r,'0,::update::sync_rst,Phase Code for RX2
+GAIN_CODE_RX2,gain_code_rx2,5:0,15,rw,r,'0,::update::sync_rst,Gain Code for RX2
+PHASE_CODE_RX3,phase_code_rx3,6:0,16,rw,r,'0,::update::sync_rst,Phase Code for RX3
+GAIN_CODE_RX3,gain_code_rx3,5:0,17,rw,r,'0,::update::sync_rst,Gain Code for RX3
+UPDATE_CODE,update_code,0:0,18,rw,r,'0,::update::sync_rst,Toggle this bit to load the values into the Stg2 Registers or load next setting from Beam LUT based on beam_sel
+RSVD0,rsvd0,0:0,19,rw,r,'0,,
+BEAM_CODE,beam_code,6:0,20,rw,r,'0,::update::sync_rst,beam Code
+RSVD1,rsvd1,0:0,21,rw,r,'0,,
+BEAM_CFG,use_beam_lut,0:0,22,rw,r,'0,::sync_rst,Set 1 to send beam position to ana
+BEAM_CFG,beam_cfg_done,1:1,22,rw,r,'0,::sync_rst,Set to 1 after programming everything that requires SPI clock
+BEAM_CFG,tx_beam_seq_en,2:2,22,rw,r,'0,::sync_rst,"Set 1 to enable beam seq, with tx load"
+BEAM_CFG,rx_beam_seq_en,3:3,22,rw,r,'0,::sync_rst,"Set 1 to enable beam seq, with rx load"
+STG2_CFG,use_reg_for_stg2_update,0:0,23,rw,r,'0,::sync_rst,1-> update code reg controls stg2 reg load
+FREQ_ID,freq_id,0:0,24,rw,r,'0,::update::sync_rst,"0 -> low freq, 1-> high freq"
+RSVD2,rsvd2,0:0,25,rw,r,'0,,
+RSVD3,rsvd3,0:0,26,rw,r,'0,,
+CORR_CFG,en_phase_corr,0:0,27,rw,r,1'h1,::sync_rst,
+CORR_CFG,en_gain_corr,1:1,27,rw,r,1'h1,::sync_rst,
+COPY_MODE,copy_mode,0:0,28,rw,r,'0,::sync_rst,Set 1 to copy same phase & gain value to all antena
+SPI_MODE_CTRL,spi_3_wire_mode,0:0,29,rw,r,'0,::sync_rst,Set 1 to enable 3 wire mode
+TX0_I_LSB,tx0_i_lsb,7:0,30,rw,rw we,'0,::sync_rst,I for TX0 Phase
+TX0_Q_LSB,tx0_q_lsb,7:0,31,rw,rw we,'0,::sync_rst,Q for TX0 Phase
+TX0_AV_LSB,tx0_av_lsb,7:0,32,rw,rw we,'0,::sync_rst,AV for TX0 Gain
+TX0_MSB,tx0_i_msb,0:0,33,rw,rw we,'0,::sync_rst,
+TX0_MSB,tx0_q_msb,1:1,33,rw,rw we,'0,::sync_rst,
+TX0_MSB,tx0_av_msb,4:2,33,rw,rw we,'0,::sync_rst,
+TX0_FINAL_AV,tx0_final_av,4:0,34,rw,rw we,'0,::sync_rst,
+RX0_I_LSB_TEMP0,rx0_i_lsb_temp0,7:0,35,rw,rw we,'0,::sync_rst,I for RX0 Phase
+RX0_Q_LSB_TEMP0,rx0_q_lsb_temp0,7:0,36,rw,rw we,'0,::sync_rst,Q for RX0 Phase
+RX0_AV_LSB_TEMP0,rx0_av_lsb_temp0,7:0,37,rw,rw we,'0,::sync_rst,AV for RX0 Gain
+RX0_MSB_TEMP0,rx0_i_msb_temp0,0:0,38,rw,rw we,'0,::sync_rst,
+RX0_MSB_TEMP0,rx0_q_msb_temp0,1:1,38,rw,rw we,'0,::sync_rst,
+RX0_MSB_TEMP0,rx0_av_msb_temp0,4:2,38,rw,rw we,'0,::sync_rst,
+RX0_I_LSB_TEMP1,rx0_i_lsb_temp1,7:0,39,rw,rw we,'0,::sync_rst,I for RX0 Phase
+RX0_Q_LSB_TEMP1,rx0_q_lsb_temp1,7:0,40,rw,rw we,'0,::sync_rst,Q for RX0 Phase
+RX0_AV_LSB_TEMP1,rx0_av_lsb_temp1,7:0,41,rw,rw we,'0,::sync_rst,AV for RX0 Gain
+RX0_MSB_TEMP1,rx0_i_msb_temp1,0:0,42,rw,rw we,'0,::sync_rst,
+RX0_MSB_TEMP1,rx0_q_msb_temp1,1:1,42,rw,rw we,'0,::sync_rst,
+RX0_MSB_TEMP1,rx0_av_msb_temp1,4:2,42,rw,rw we,'0,::sync_rst,
+RX0_I_LSB_TEMP2,rx0_i_lsb_temp2,7:0,43,rw,rw we,'0,::sync_rst,I for RX0 Phase
+RX0_Q_LSB_TEMP2,rx0_q_lsb_temp2,7:0,44,rw,rw we,'0,::sync_rst,Q for RX0 Phase
+RX0_AV_LSB_TEMP2,rx0_av_lsb_temp2,7:0,45,rw,rw we,'0,::sync_rst,AV for RX0 Gain
+RX0_MSB_TEMP2,rx0_i_msb_temp2,0:0,46,rw,rw we,'0,::sync_rst,
+RX0_MSB_TEMP2,rx0_q_msb_temp2,1:1,46,rw,rw we,'0,::sync_rst,
+RX0_MSB_TEMP2,rx0_av_msb_temp2,4:2,46,rw,rw we,'0,::sync_rst,
+RX0_I_LSB_TEMP3,rx0_i_lsb_temp3,7:0,47,rw,rw we,'0,::sync_rst,I for RX0 Phase
+RX0_Q_LSB_TEMP3,rx0_q_lsb_temp3,7:0,48,rw,rw we,'0,::sync_rst,Q for RX0 Phase
+RX0_AV_LSB_TEMP3,rx0_av_lsb_temp3,7:0,49,rw,rw we,'0,::sync_rst,AV for RX0 Gain
+RX0_MSB_TEMP3,rx0_i_msb_temp3,0:0,50,rw,rw we,'0,::sync_rst,
+RX0_MSB_TEMP3,rx0_q_msb_temp3,1:1,50,rw,rw we,'0,::sync_rst,
+RX0_MSB_TEMP3,rx0_av_msb_temp3,4:2,50,rw,rw we,'0,::sync_rst,
+TX1_I_LSB,tx1_i_lsb,7:0,51,rw,rw we,'0,::sync_rst,I for TX1 Phase
+TX1_Q_LSB,tx1_q_lsb,7:0,52,rw,rw we,'0,::sync_rst,Q for TX1 Phase
+TX1_AV_LSB,tx1_av_lsb,7:0,53,rw,rw we,'0,::sync_rst,AV for TX1 Gain
+TX1_MSB,tx1_i_msb,0:0,54,rw,rw we,'0,::sync_rst,
+TX1_MSB,tx1_q_msb,1:1,54,rw,rw we,'0,::sync_rst,
+TX1_MSB,tx1_av_msb,4:2,54,rw,rw we,'0,::sync_rst,
+TX1_FINAL_AV,tx1_final_av,4:0,55,rw,rw we,'0,::sync_rst,
+RX1_I_LSB_TEMP0,rx1_i_lsb_temp0,7:0,56,rw,rw we,'0,::sync_rst,I for RX1 Phase
+RX1_Q_LSB_TEMP0,rx1_q_lsb_temp0,7:0,57,rw,rw we,'0,::sync_rst,Q for RX1 Phase
+RX1_AV_LSB_TEMP0,rx1_av_lsb_temp0,7:0,58,rw,rw we,'0,::sync_rst,AV for RX1 Gain
+RX1_MSB_TEMP0,rx1_i_msb_temp0,0:0,59,rw,rw we,'0,::sync_rst,
+RX1_MSB_TEMP0,rx1_q_msb_temp0,1:1,59,rw,rw we,'0,::sync_rst,
+RX1_MSB_TEMP0,rx1_av_msb_temp0,4:2,59,rw,rw we,'0,::sync_rst,
+RX1_I_LSB_TEMP1,rx1_i_lsb_temp1,7:0,60,rw,rw we,'0,::sync_rst,I for RX1 Phase
+RX1_Q_LSB_TEMP1,rx1_q_lsb_temp1,7:0,61,rw,rw we,'0,::sync_rst,Q for RX1 Phase
+RX1_AV_LSB_TEMP1,rx1_av_lsb_temp1,7:0,62,rw,rw we,'0,::sync_rst,AV for RX1 Gain
+RX1_MSB_TEMP1,rx1_i_msb_temp1,0:0,63,rw,rw we,'0,::sync_rst,
+RX1_MSB_TEMP1,rx1_q_msb_temp1,1:1,63,rw,rw we,'0,::sync_rst,
+RX1_MSB_TEMP1,rx1_av_msb_temp1,4:2,63,rw,rw we,'0,::sync_rst,
+RX1_I_LSB_TEMP2,rx1_i_lsb_temp2,7:0,64,rw,rw we,'0,::sync_rst,I for RX1 Phase
+RX1_Q_LSB_TEMP2,rx1_q_lsb_temp2,7:0,65,rw,rw we,'0,::sync_rst,Q for RX1 Phase
+RX1_AV_LSB_TEMP2,rx1_av_lsb_temp2,7:0,66,rw,rw we,'0,::sync_rst,AV for RX1 Gain
+RX1_MSB_TEMP2,rx1_i_msb_temp2,0:0,67,rw,rw we,'0,::sync_rst,
+RX1_MSB_TEMP2,rx1_q_msb_temp2,1:1,67,rw,rw we,'0,::sync_rst,
+RX1_MSB_TEMP2,rx1_av_msb_temp2,4:2,67,rw,rw we,'0,::sync_rst,
+RX1_I_LSB_TEMP3,rx1_i_lsb_temp3,7:0,68,rw,rw we,'0,::sync_rst,I for RX1 Phase
+RX1_Q_LSB_TEMP3,rx1_q_lsb_temp3,7:0,69,rw,rw we,'0,::sync_rst,Q for RX1 Phase
+RX1_AV_LSB_TEMP3,rx1_av_lsb_temp3,7:0,70,rw,rw we,'0,::sync_rst,AV for RX1 Gain
+RX1_MSB_TEMP3,rx1_i_msb_temp3,0:0,71,rw,rw we,'0,::sync_rst,
+RX1_MSB_TEMP3,rx1_q_msb_temp3,1:1,71,rw,rw we,'0,::sync_rst,
+RX1_MSB_TEMP3,rx1_av_msb_temp3,4:2,71,rw,rw we,'0,::sync_rst,
+TX2_I_LSB,tx2_i_lsb,7:0,72,rw,rw we,'0,::sync_rst,I for TX2 Phase
+TX2_Q_LSB,tx2_q_lsb,7:0,73,rw,rw we,'0,::sync_rst,Q for TX2 Phase
+TX2_AV_LSB,tx2_av_lsb,7:0,74,rw,rw we,'0,::sync_rst,AV for TX2 Gain
+TX2_MSB,tx2_i_msb,0:0,75,rw,rw we,'0,::sync_rst,
+TX2_MSB,tx2_q_msb,1:1,75,rw,rw we,'0,::sync_rst,
+TX2_MSB,tx2_av_msb,4:2,75,rw,rw we,'0,::sync_rst,
+TX2_FINAL_AV,tx2_final_av,4:0,76,rw,rw we,'0,::sync_rst,
+RX2_I_LSB_TEMP0,rx2_i_lsb_temp0,7:0,77,rw,rw we,'0,::sync_rst,I for RX2 Phase
+RX2_Q_LSB_TEMP0,rx2_q_lsb_temp0,7:0,78,rw,rw we,'0,::sync_rst,Q for RX2 Phase
+RX2_AV_LSB_TEMP0,rx2_av_lsb_temp0,7:0,79,rw,rw we,'0,::sync_rst,AV for RX2 Gain
+RX2_MSB_TEMP0,rx2_i_msb_temp0,0:0,80,rw,rw we,'0,::sync_rst,
+RX2_MSB_TEMP0,rx2_q_msb_temp0,1:1,80,rw,rw we,'0,::sync_rst,
+RX2_MSB_TEMP0,rx2_av_msb_temp0,4:2,80,rw,rw we,'0,::sync_rst,
+RX2_I_LSB_TEMP1,rx2_i_lsb_temp1,7:0,81,rw,rw we,'0,::sync_rst,I for RX2 Phase
+RX2_Q_LSB_TEMP1,rx2_q_lsb_temp1,7:0,82,rw,rw we,'0,::sync_rst,Q for RX2 Phase
+RX2_AV_LSB_TEMP1,rx2_av_lsb_temp1,7:0,83,rw,rw we,'0,::sync_rst,AV for RX2 Gain
+RX2_MSB_TEMP1,rx2_i_msb_temp1,0:0,84,rw,rw we,'0,::sync_rst,
+RX2_MSB_TEMP1,rx2_q_msb_temp1,1:1,84,rw,rw we,'0,::sync_rst,
+RX2_MSB_TEMP1,rx2_av_msb_temp1,4:2,84,rw,rw we,'0,::sync_rst,
+RX2_I_LSB_TEMP2,rx2_i_lsb_temp2,7:0,85,rw,rw we,'0,::sync_rst,I for RX2 Phase
+RX2_Q_LSB_TEMP2,rx2_q_lsb_temp2,7:0,86,rw,rw we,'0,::sync_rst,Q for RX2 Phase
+RX2_AV_LSB_TEMP2,rx2_av_lsb_temp2,7:0,87,rw,rw we,'0,::sync_rst,AV for RX2 Gain
+RX2_MSB_TEMP2,rx2_i_msb_temp2,0:0,88,rw,rw we,'0,::sync_rst,
+RX2_MSB_TEMP2,rx2_q_msb_temp2,1:1,88,rw,rw we,'0,::sync_rst,
+RX2_MSB_TEMP2,rx2_av_msb_temp2,4:2,88,rw,rw we,'0,::sync_rst,
+RX2_I_LSB_TEMP3,rx2_i_lsb_temp3,7:0,89,rw,rw we,'0,::sync_rst,I for RX2 Phase
+RX2_Q_LSB_TEMP3,rx2_q_lsb_temp3,7:0,90,rw,rw we,'0,::sync_rst,Q for RX2 Phase
+RX2_AV_LSB_TEMP3,rx2_av_lsb_temp3,7:0,91,rw,rw we,'0,::sync_rst,AV for RX2 Gain
+RX2_MSB_TEMP3,rx2_i_msb_temp3,0:0,92,rw,rw we,'0,::sync_rst,
+RX2_MSB_TEMP3,rx2_q_msb_temp3,1:1,92,rw,rw we,'0,::sync_rst,
+RX2_MSB_TEMP3,rx2_av_msb_temp3,4:2,92,rw,rw we,'0,::sync_rst,
+TX3_I_LSB,tx3_i_lsb,7:0,93,rw,rw we,'0,::sync_rst,I for TX3 Phase
+TX3_Q_LSB,tx3_q_lsb,7:0,94,rw,rw we,'0,::sync_rst,Q for TX3 Phase
+TX3_AV_LSB,tx3_av_lsb,7:0,95,rw,rw we,'0,::sync_rst,AV for TX3 Gain
+TX3_MSB,tx3_i_msb,0:0,96,rw,rw we,'0,::sync_rst,
+TX3_MSB,tx3_q_msb,1:1,96,rw,rw we,'0,::sync_rst,
+TX3_MSB,tx3_av_msb,4:2,96,rw,rw we,'0,::sync_rst,
+TX3_FINAL_AV,tx3_final_av,4:0,97,rw,rw we,'0,::sync_rst,
+RX3_I_LSB_TEMP0,rx3_i_lsb_temp0,7:0,98,rw,rw we,'0,::sync_rst,I for RX3 Phase
+RX3_Q_LSB_TEMP0,rx3_q_lsb_temp0,7:0,99,rw,rw we,'0,::sync_rst,Q for RX3 Phase
+RX3_AV_LSB_TEMP0,rx3_av_lsb_temp0,7:0,100,rw,rw we,'0,::sync_rst,AV for RX3 Gain
+RX3_MSB_TEMP0,rx3_i_msb_temp0,0:0,101,rw,rw we,'0,::sync_rst,
+RX3_MSB_TEMP0,rx3_q_msb_temp0,1:1,101,rw,rw we,'0,::sync_rst,
+RX3_MSB_TEMP0,rx3_av_msb_temp0,4:2,101,rw,rw we,'0,::sync_rst,
+RX3_I_LSB_TEMP1,rx3_i_lsb_temp1,7:0,102,rw,rw we,'0,::sync_rst,I for RX3 Phase
+RX3_Q_LSB_TEMP1,rx3_q_lsb_temp1,7:0,103,rw,rw we,'0,::sync_rst,Q for RX3 Phase
+RX3_AV_LSB_TEMP1,rx3_av_lsb_temp1,7:0,104,rw,rw we,'0,::sync_rst,AV for RX3 Gain
+RX3_MSB_TEMP1,rx3_i_msb_temp1,0:0,105,rw,rw we,'0,::sync_rst,
+RX3_MSB_TEMP1,rx3_q_msb_temp1,1:1,105,rw,rw we,'0,::sync_rst,
+RX3_MSB_TEMP1,rx3_av_msb_temp1,4:2,105,rw,rw we,'0,::sync_rst,
+RX3_I_LSB_TEMP2,rx3_i_lsb_temp2,7:0,106,rw,rw we,'0,::sync_rst,I for RX3 Phase
+RX3_Q_LSB_TEMP2,rx3_q_lsb_temp2,7:0,107,rw,rw we,'0,::sync_rst,Q for RX3 Phase
+RX3_AV_LSB_TEMP2,rx3_av_lsb_temp2,7:0,108,rw,rw we,'0,::sync_rst,AV for RX3 Gain
+RX3_MSB_TEMP2,rx3_i_msb_temp2,0:0,109,rw,rw we,'0,::sync_rst,
+RX3_MSB_TEMP2,rx3_q_msb_temp2,1:1,109,rw,rw we,'0,::sync_rst,
+RX3_MSB_TEMP2,rx3_av_msb_temp2,4:2,109,rw,rw we,'0,::sync_rst,
+RX3_I_LSB_TEMP3,rx3_i_lsb_temp3,7:0,110,rw,rw we,'0,::sync_rst,I for RX3 Phase
+RX3_Q_LSB_TEMP3,rx3_q_lsb_temp3,7:0,111,rw,rw we,'0,::sync_rst,Q for RX3 Phase
+RX3_AV_LSB_TEMP3,rx3_av_lsb_temp3,7:0,112,rw,rw we,'0,::sync_rst,AV for RX3 Gain
+RX3_MSB_TEMP3,rx3_i_msb_temp3,0:0,113,rw,rw we,'0,::sync_rst,
+RX3_MSB_TEMP3,rx3_q_msb_temp3,1:1,113,rw,rw we,'0,::sync_rst,
+RX3_MSB_TEMP3,rx3_av_msb_temp3,4:2,113,rw,rw we,'0,::sync_rst,
+PAGE_ID,page_id,7:0,114,rw,r,'0,::sync_rst,page_id for Memory Access
+POWER_DET_CFG,det0_sel,1:0,115,rw,r,'0,::sync_rst,0: Disconnected 1: Signal Peak Det 2: Common Model Peak Det 3: Illegal
+POWER_DET_CFG,det1_sel,3:2,115,rw,r,'0,::sync_rst,0: Disconnected 1: Signal Peak Det 2: Common Model Peak Det 3: Illegal
+POWER_DET_CFG,det2_sel,5:4,115,rw,r,'0,::sync_rst,0: Disconnected 1: Signal Peak Det 2: Common Model Peak Det 3: Illegal
+POWER_DET_CFG,det3_sel,7:6,115,rw,r,'0,::sync_rst,0: Disconnected 1: Signal Peak Det 2: Common Model Peak Det 3: Illegal
+DAC_CTRL_PA0,DAC_CTRL_PA0,7:0,116,rw,r,'0,::sync_rst,PA0 Bias
+DAC_CTRL_PA1,DAC_CTRL_PA1,7:0,117,rw,r,'0,::sync_rst,PA1 Bias
+DAC_CTRL_PA2,DAC_CTRL_PA2,7:0,118,rw,r,'0,::sync_rst,PA2 Bias
+DAC_CTRL_PA3,DAC_CTRL_PA3,7:0,119,rw,r,'0,::sync_rst,PA3 Bias
+DAC_CTRL_PA0_PDN,DAC_CTRL_PA0_PDN,7:0,120,rw,r,'0,::sync_rst,PA0 Bias
+DAC_CTRL_PA1_PDN,DAC_CTRL_PA1_PDN,7:0,121,rw,r,'0,::sync_rst,PA1 Bias
+DAC_CTRL_PA2_PDN,DAC_CTRL_PA2_PDN,7:0,122,rw,r,'0,::sync_rst,PA2 Bias
+DAC_CTRL_PA3_PDN,DAC_CTRL_PA3_PDN,7:0,123,rw,r,'0,::sync_rst,PA3 Bias
+DAC_CTRL_LNA0,DAC_CTRL_LNA0,7:0,124,rw,r,'0,::sync_rst,LNA0 Bias
+DAC_CTRL_LNA1,DAC_CTRL_LNA1,7:0,125,rw,r,'0,::sync_rst,LNA1 Bias
+DAC_CTRL_LNA2,DAC_CTRL_LNA2,7:0,126,rw,r,'0,::sync_rst,LNA2 Bias
+DAC_CTRL_LNA3,DAC_CTRL_LNA3,7:0,127,rw,r,'0,::sync_rst,LNA3 Bias
+DAC_CTRL_LNA0_PDN,DAC_CTRL_LNA0_PDN,7:0,128,rw,r,'0,::sync_rst,LNA0 Bias
+DAC_CTRL_LNA1_PDN,DAC_CTRL_LNA1_PDN,7:0,129,rw,r,'0,::sync_rst,LNA1 Bias
+DAC_CTRL_LNA2_PDN,DAC_CTRL_LNA2_PDN,7:0,130,rw,r,'0,::sync_rst,LNA2 Bias
+DAC_CTRL_LNA3_PDN,DAC_CTRL_LNA3_PDN,7:0,131,rw,r,'0,::sync_rst,LNA3 Bias
+REG0_TX0,tx0_cmb_icurr_ctrl,1:0,132,rw,r,'0,::sync_rst,Channel 0 tx combiner iphase block tail sink current control
+REG0_TX0,tx0_cmb_qcurr_ctrl,3:2,132,rw,r,'0,::sync_rst,Channel 0 tx combiner qphase block tail sink current control
+REG0_TX0,tr_clk_delay_ctrl_3_2,5:4,132,rw,r,'0,::sync_rst,TR input clock delay control to temp_sense_flash_adc and peak detectors
+REG0_TX0,tx0_obs_9_8,7:6,132,rw,r,'0,::sync_rst,observation/atb bits for channel 0 TX
+REG1_TX0,tx0_obs_7_0,7:0,133,rw,r,'0,::sync_rst,observation/atb bits for channel 0 TX
+REG0_TX1,tx1_cmb_icurr_ctrl,1:0,134,rw,r,'0,::sync_rst,Channel 1 tx combiner iphase block tail sink current control
+REG0_TX1,tx1_cmb_qcurr_ctrl,3:2,134,rw,r,'0,::sync_rst,Channel 1 tx combiner qphase block tail sink current control
+REG0_TX1,tr_clk_delay_ctrl_1_0,5:4,134,rw,r,'0,::sync_rst,TR input clock delay control to temp_sense_flash_adc and peak detectors
+REG0_TX1,tx1_obs_9_8,7:6,134,rw,r,'0,::sync_rst,observation/atb bits for channel 1 TX
+REG1_TX1,tx1_obs_7_0,7:0,135,rw,r,'0,::sync_rst,observation/atb bits for channel 1 TX
+REG0_TX2,tx2_cmb_icurr_ctrl,1:0,136,rw,r,'0,::sync_rst,Channel 2 tx combiner iphase block tail sink current control
+REG0_TX2,tx2_cmb_qcurr_ctrl,3:2,136,rw,r,'0,::sync_rst,Channel 2 tx combiner qphase block tail sink current control
+REG0_TX2,rsvd4,5:4,136,rw,r,'0,::sync_rst,floating/not used
+REG0_TX2,tx2_obs_9_8,7:6,136,rw,r,'0,::sync_rst,observation/atb bits for channel 2 TX
+REG1_TX2,tx2_obs_7_0,7:0,137,rw,r,'0,::sync_rst,observation/atb bits for channel 2 TX
+REG0_TX3,tx3_cmb_icurr_ctrl,1:0,138,rw,r,'0,::sync_rst,Channel 3 tx combiner iphase block tail sink current control
+REG0_TX3,tx3_cmb_qcurr_ctrl,3:2,138,rw,r,'0,::sync_rst,Channel 3 tx combiner qphase block tail sink current control
+REG0_TX3,rsvd5,5:4,138,rw,r,'0,::sync_rst,floating/not used
+REG0_TX3,tx3_obs_9_8,7:6,138,rw,r,'0,::sync_rst,observation/atb bits for channel 3 TX
+REG1_TX3,tx3_obs_7_0,7:0,139,rw,r,'0,::sync_rst,observation/atb bits for channel 3 TX
+REG0_RX0,rx0_cmb_icurr_ctrl,1:0,140,rw,r,'0,::sync_rst,Channel 0 rx combiner iphase block tail sink current control
+REG0_RX0,rx0_cmb_qcurr_ctrl,3:2,140,rw,r,'0,::sync_rst,Channel 0 rx combiner qphase block tail sink current control
+REG0_RX0,rx0_obs_11_8,7:4,140,rw,r,'0,::sync_rst,observation/atb bits for channel 0 RX
+REG1_RX0,rx0_obs_7_0,7:0,141,rw,r,'0,::sync_rst,observation/atb bits for channel 0 RX
+REG0_RX1,rx1_cmb_icurr_ctrl,1:0,142,rw,r,'0,::sync_rst,Channel 1 rx combiner iphase block tail sink current control
+REG0_RX1,rx1_cmb_qcurr_ctrl,3:2,142,rw,r,'0,::sync_rst,Channel 1 rx combiner qphase block tail sink current control
+REG0_RX1,rx1_obs_11_8,7:4,142,rw,r,'0,::sync_rst,observation/atb bits for channel 1 RX
+REG1_RX1,rx1_obs_7_0,7:0,143,rw,r,'0,::sync_rst,observation/atb bits for channel 1 RX
+REG0_RX2,rx2_cmb_icurr_ctrl,1:0,144,rw,r,'0,::sync_rst,Channel 2 rx combiner iphase block tail sink current control
+REG0_RX2,rx2_cmb_qcurr_ctrl,3:2,144,rw,r,'0,::sync_rst,Channel 2 rx combiner qphase block tail sink current control
+REG0_RX2,rx2_obs_11_8,7:4,144,rw,r,'0,::sync_rst,observation/atb bits for channel 2 RX
+REG1_RX2,rx2_obs_7_0,7:0,145,rw,r,'0,::sync_rst,observation/atb bits for channel 2 RX
+REG0_RX3,rx3_cmb_icurr_ctrl,1:0,146,rw,r,'0,::sync_rst,Channel 3 rx combiner iphase block tail sink current control
+REG0_RX3,rx3_cmb_qcurr_ctrl,3:2,146,rw,r,'0,::sync_rst,Channel 3 rx combiner qphase block tail sink current control
+REG0_RX3,rx3_obs_11_8,7:4,146,rw,r,'0,::sync_rst,observation/atb bits for channel 3 RX
+REG1_RX3,rx3_obs_7_0,7:0,147,rw,r,'0,::sync_rst,observation/atb bits for channel 3 RX
+REG0_EXT_BIAS,ext_bias_top_obs,7:0,148,rw,r,'0,::sync_rst,observation/atb bits for External bias top
+REG1_EXT_BIAS,ext_bias_neg_sw_polarity,0:0,149,rw,r,'0,::sync_rst,External bias neg switch polarity control
+REG1_EXT_BIAS,ext_bias_neg_sw_isink,1:1,149,rw,r,'0,::sync_rst,External bias neg switch 1mA sink enable 
+REG1_EXT_BIAS,ext_bias_neg_sw_highZ_en,2:2,149,rw,r,'0,::sync_rst,External bias neg switch high impedance mode enable
+REG1_EXT_BIAS,ext_bias_pos_sw_highZ_en,3:3,149,rw,r,'0,::sync_rst,External bias pos switch high impedance mode enable
+REG1_EXT_BIAS,ext_bias_pos_sw_polarity,4:4,149,rw,r,'0,::sync_rst,External bias pos switch polarity control
+REG1_EXT_BIAS,rsvd6,7:5,149,rw,r,'0,::sync_rst,floating/not used
+REG2_EXT_BIAS,pa0_bias_highZ_en,0:0,150,rw,r,'0,::sync_rst,PA0 bias high impedance mode enable
+REG2_EXT_BIAS,pa1_bias_highZ_en,1:1,150,rw,r,'0,::sync_rst,PA1 bias high impedance mode enable
+REG2_EXT_BIAS,pa2_bias_highZ_en,2:2,150,rw,r,'0,::sync_rst,PA2 bias high impedance mode enable
+REG2_EXT_BIAS,pa3_bias_highZ_en,3:3,150,rw,r,'0,::sync_rst,PA3 bias high impedance mode enable
+REG2_EXT_BIAS,lna0_bias_highZ_en,4:4,150,rw,r,'0,::sync_rst,LNA0 bias high impedance mode enable
+REG2_EXT_BIAS,lna1_bias_highZ_en,5:5,150,rw,r,'0,::sync_rst,LNA1 bias high impedance mode enable
+REG2_EXT_BIAS,lna2_bias_highZ_en,6:6,150,rw,r,'0,::sync_rst,LNA2 bias high impedance mode enable
+REG2_EXT_BIAS,lna3_bias_highZ_en,7:7,150,rw,r,'0,::sync_rst,LNA3 bias high impedance mode enable
+REG3_EXT_BIAS,pa0_test_mode_en,0:0,151,rw,r,'0,::sync_rst,PA0 Bias test mode enable
+REG3_EXT_BIAS,pa1_test_mode_en,1:1,151,rw,r,'0,::sync_rst,PA1 Bias test mode enable
+REG3_EXT_BIAS,pa2_test_mode_en,2:2,151,rw,r,'0,::sync_rst,PA2 Bias test mode enable
+REG3_EXT_BIAS,pa3_test_mode_en,3:3,151,rw,r,'0,::sync_rst,PA3 Bias test mode enable
+REG3_EXT_BIAS,lna0_test_mode_en,4:4,151,rw,r,'0,::sync_rst,LNA0 Bias test mode enable
+REG3_EXT_BIAS,lna1_test_mode_en,5:5,151,rw,r,'0,::sync_rst,LNA1 Bias test mode enable
+REG3_EXT_BIAS,lna2_test_mode_en,6:6,151,rw,r,'0,::sync_rst,LNA2 Bias test mode enable
+REG3_EXT_BIAS,lna3_test_mode_en,7:7,151,rw,r,'0,::sync_rst,LNA3 Bias test mode enable
+REG4_EXT_BIAS,rsvd7,7:0,152,rw,r,'0,::sync_rst,floating/not used
+REG5_EXT_BIAS,rsvd8,7:0,153,rw,r,'0,::sync_rst,floating/not used
+REG6_EXT_BIAS,rsvd9,7:0,154,rw,r,'0,::sync_rst,floating/not used
+REG0_BGR,bgr_ptat_amp_ibias_ctrl,3:0,155,rw,r,'0,::sync_rst,BGR error amplifier in PTAT loop input ibias control
+REG0_BGR,bgr_hard_startup_en,4:4,155,rw,r,'0,::sync_rst,BGR external forced startup signal
+REG0_BGR,bgr_to_adc_ztat_volt_en,5:5,155,rw,r,'0,::sync_rst,.BGR to ADC input ztat 1..8V voltage selection.
+REG0_BGR,bgr_to_adc_ptat_volt_en,6:6,155,rw,r,'0,::sync_rst,.BGR to ADC input ptat 1..8V voltage selection.
+REG0_BGR,rsvd10,7:7,155,rw,r,'0,::sync_rst,floating/not used
+REG0_ADC,adc_osc_cap_ctrl,3:0,156,rw,r,'0,::sync_rst,ADC oscillator cap bank control
+REG0_ADC,en_pkdet_to_adc_sw,4:4,156,rw,r,'0,::sync_rst,Enable peak detector to ADC input switch control
+REG0_ADC,en_temp_sense_to_adc_sw,5:5,156,rw,r,'0,::sync_rst,Enable temperature sensor to ADC input switch control
+REG0_ADC,en_atb_to_adc_sw,6:6,156,rw,r,'0,::sync_rst,Enable atb signals to ADC input switch control
+REG0_ADC,en_gp7_to_adc_sw,7:7,156,rw,r,'0,::sync_rst,Enable general purpose 7 to ADC input switch control
+REG1_ADC,en_bypass_clk_for_adc,0:0,157,rw,r,'0,::sync_rst,Enable bypass/external clock for ADC
+REG1_ADC,bypass_clk_for_adc,1:1,157,rw,r,'0,::sync_rst,Bypass/external clock for ADC
+REG1_ADC,rsvd11,7:2,157,rw,r,'0,::sync_rst,floating/not used
+ADC_CTRL,en_adc_osc,0:0,158,rw,r,'0,::sync_rst,
+ADC_CTRL,en_adc,1:1,158,rw,r,'0,::sync_rst,
+ADC_STS,eoc,0:0,159,r,w,'0,,
+REG0_SPARE,ch0_tx_obs_13_10,3:0,160,rw,r,'0,::sync_rst,observation/atb bits for channel 0 TX
+REG0_SPARE,ch1_tx_obs_13_10,7:4,160,rw,r,'0,::sync_rst,observation/atb bits for channel 1 TX
+REG1_SPARE,ch2_tx_obs_13_10,3:0,161,rw,r,'0,::sync_rst,observation/atb bits for channel 2 TX
+REG1_SPARE,ch3_tx_obs_13_10,7:4,161,rw,r,'0,::sync_rst,observation/atb bits for channel 3 TX
+REG2_SPARE,txlna_curr_ctrl,1:0,162,rw,r,'0,::sync_rst,Common TX LNA block tail sink current control
+REG2_SPARE,txlna_obs,4:2,162,rw,r,'0,::sync_rst,observation/atb bits for common TX LNA
+REG2_SPARE,low_pdn_curr_tx,5:5,162,rw,r,'0,::sync_rst,Enable low current power-down mode for TX
+REG2_SPARE,low_pdn_curr_rx,6:6,162,rw,r,'0,::sync_rst,Enable low current power-down mode for RX
+REG2_SPARE,low_pdn_curr_temp_sns,7:7,162,rw,r,'0,::sync_rst,Enable low current power-down mode for Temperature Sense block
+REG3_SPARE,pk_det_obs,3:0,163,rw,r,'0,::sync_rst,observation/atb bits for peak detector
+REG3_SPARE,temp_sense_obs,4:4,163,rw,r,'0,::sync_rst,observation/atb bits for temp sense
+REG3_SPARE,temp_sense_adc_obs,5:5,163,rw,r,'0,::sync_rst,observation/atb bits for temp sense flash adc
+REG3_SPARE,rsvd12,7:6,163,rw,r,'0,::sync_rst,floating/not used
+TR_CTRL,RX_en_force,3:0,164,rw,r,'0,::sync_rst,
+TR_CTRL,RX_en_force_val,7:4,164,rw,r,'0,::sync_rst,
+TR_CTRL_1,TX_en_force,3:0,165,rw,r,'0,::sync_rst,
+TR_CTRL_1,TX_en_force_val,7:4,165,rw,r,'0,::sync_rst,
+TR_CTRL_2,det_en_force,3:0,166,rw,r,'0,::sync_rst,
+TR_CTRL_2,det_en_force_val,7:4,166,rw,r,'0,::sync_rst,
+TR_CTRL_3,en_lna_force,3:0,167,rw,r,'0,::sync_rst,
+TR_CTRL_3,en_lna_force_val,7:4,167,rw,r,'0,::sync_rst,
+TR_CTRL_4,en_pa_force,3:0,168,rw,r,'0,::sync_rst,
+TR_CTRL_4,en_pa_force_val,7:4,168,rw,r,'0,::sync_rst,
+TR_CTRL_5,en_pos_sw_force,0:0,169,rw,r,'0,::sync_rst,
+TR_CTRL_5,en_pos_sw_force_val,1:1,169,rw,r,'0,::sync_rst,
+TR_CTRL_5,TX_lna_en_force,2:2,169,rw,r,'0,::sync_rst,
+TR_CTRL_5,TX_lna_en_force_val,3:3,169,rw,r,'0,::sync_rst,
+TR_CTRL_5,en_neg_sw_force,4:4,169,rw,r,'0,::sync_rst,
+TR_CTRL_5,en_neg_sw_force_val,5:5,169,rw,r,'0,::sync_rst,
+TR_CTRL_5,en_pol,6:6,169,rw,r,'0,::sync_rst,
+TR_MASK,tx_mask,3:0,170,rw,r,'0,::sync_rst,
+TR_MASK,rx_mask,7:4,170,rw,r,'0,::sync_rst,
+TR_SW_CTRL,tr_reg,0:0,171,rw,r,'0,::sync_rst,tr pin control of reg
+TR_CFG,tr_mode_sel,0:0,172,rw,r,'0,::sync_rst,1 = tr pin controlled by sw
+TR_CFG,data_path_en,1:1,172,rw,r,'0,::sync_rst,0 = tr pin/reg donot have any effect
+TX_BEAM_START_ADDR,tx_beam_start_addr,6:0,173,rw,r,'0,::update::sync_rst,start location of beam position tx
+TX_BEAM_STOP_ADDR,tx_beam_stop_addr,6:0,174,rw,r,127,::sync_rst,stop location of beam position tx 
+RX_BEAM_START_ADDR,rx_beam_start_addr,6:0,175,rw,r,'0,::update::sync_rst,start location of beam position rx
+RX_BEAM_STOP_ADDR,rx_beam_stop_addr,6:0,176,rw,r,127,::sync_rst,stop location of beam position rx
+TX_GAIN_FORCE,tx0_final_gain_force,0:0,177,rw,r,'0,::sync_rst,Set 1 to SW force the final gain
+TX_GAIN_FORCE,tx1_final_gain_force,1:1,177,rw,r,'0,::sync_rst,
+TX_GAIN_FORCE,tx2_final_gain_force,2:2,177,rw,r,'0,::sync_rst,
+TX_GAIN_FORCE,tx3_final_gain_force,3:3,177,rw,r,'0,::sync_rst,
+TX_GAIN_FORCE,tx0_gain_force,4:4,177,rw,r,'0,::sync_rst,Set 1 to SW force the gain
+TX_GAIN_FORCE,tx1_gain_force,5:5,177,rw,r,'0,::sync_rst,
+TX_GAIN_FORCE,tx2_gain_force,6:6,177,rw,r,'0,::sync_rst,
+TX_GAIN_FORCE,tx3_gain_force,7:7,177,rw,r,'0,::sync_rst,
+TX0_FINAL_GAIN_FORCE_VAL,tx0_final_gain_force_val,4:0,178,rw,r,'0,::sync_rst,SW forced value for final gain
+TX1_FINAL_GAIN_FORCE_VAL,tx1_final_gain_force_val,4:0,179,rw,r,'0,::sync_rst,SW forced value for final gain
+TX2_FINAL_GAIN_FORCE_VAL,tx2_final_gain_force_val,4:0,180,rw,r,'0,::sync_rst,SW forced value for final gain
+TX3_FINAL_GAIN_FORCE_VAL,tx3_final_gain_force_val,4:0,181,rw,r,'0,::sync_rst,SW forced value for final gain
+TX0_GAIN_FORCE_LSB_VAL,tx0_gain_force_lsb_val,7:0,182,rw,r,'0,::sync_rst,
+TX0_GAIN_FORCE_MSB_VAL,tx0_gain_force_msb_val,2:0,183,rw,r,'0,::sync_rst,
+TX1_GAIN_FORCE_LSB_VAL,tx1_gain_force_lsb_val,7:0,184,rw,r,'0,::sync_rst,
+TX1_GAIN_FORCE_MSB_VAL,tx1_gain_force_msb_val,2:0,185,rw,r,'0,::sync_rst,
+TX2_GAIN_FORCE_LSB_VAL,tx2_gain_force_lsb_val,7:0,186,rw,r,'0,::sync_rst,
+TX2_GAIN_FORCE_MSB_VAL,tx2_gain_force_msb_val,2:0,187,rw,r,'0,::sync_rst,
+TX3_GAIN_FORCE_LSB_VAL,tx3_gain_force_lsb_val,7:0,188,rw,r,'0,::sync_rst,
+TX3_GAIN_FORCE_MSB_VAL,tx3_gain_force_msb_val,2:0,189,rw,r,'0,::sync_rst,
+TX_GAIN_CORR_COEF_0,tx_gain_corr_coef_0,4:0,190,rw,r,'0,::sync_rst,
+TX_GAIN_CORR_COEF_1,tx_gain_corr_coef_1,4:0,191,rw,r,'0,::sync_rst,
+TX_GAIN_CORR_COEF_2,tx_gain_corr_coef_2,4:0,192,rw,r,'0,::sync_rst,
+TX_GAIN_CORR_COEF_3,tx_gain_corr_coef_3,4:0,193,rw,r,'0,::sync_rst,
+DET_0_1_ADC_OUT_BIN,det0_adc_out_bin,2:0,194,r,w,'0,,Status Registers
+DET_0_1_ADC_OUT_BIN,det1_adc_out_bin,5:3,194,r,w,'0,,
+DET_2_3_ADC_OUT_BIN,det2_adc_out_bin,2:0,195,r,w,'0,,
+DET_2_3_ADC_OUT_BIN,det3_adc_out_bin,5:3,195,r,w,'0,,
+SPARE_ADC_TEMP_ADC_OUT_BIN,spare_adc_out_bin,2:0,196,r,w,'0,,
+SPARE_ADC_TEMP_ADC_OUT_BIN,temp_adc_out_bin,6:3,196,r,w,'0,,
+TEMP_CORR_CFG,force_ana_temp,0:0,197,rw,r,'0,::sync_rst,
+TEMP_CORR_CFG,force_ana_temp_val,2:1,197,rw,r,'0,::sync_rst,
+TEMP_CORR_CFG,en_rx_temp_corr,3:3,197,rw,r,'0,::sync_rst,
+TEMP_CORR_CFG,en_tx_temp_corr,4:4,197,rw,r,'0,::sync_rst,
+TX_LNA_CFG,TX_lna_gain_ctrl,7:0,198,rw,r,'0,::sync_rst,
+TEMP_IN_BIN,temp_in_bin,1:0,199,r,w,'0,,
+SPI_CFG,force_sdio_to_z,0:0,200,rw,r,'0,::sync_rst,force sdio pin to z
+SPI_CFG,force_sdo_to_z,1:1,200,rw,r,'0,::sync_rst,force sdo pin to z
+ADC_IN_LSB,adc_in_lsb,7:0,201,r,w,'0,,Status Register
+ADC_IN_MSB,adc_in_msb,0:0,202,r,w,'0,,Status Register
+SYNC_RST,sync_rst,0:0,203,rw,r,'0,::sync_rst,sync reset all register
+TX0_STS_REG,TX0_iphase_ctrl,7:0,204,r,w,'0,,TX0 Statutus Registers
+TX0_STS_REG_1,TX0_qphase_ctrl,7:0,205,r,w,'0,,
+TX0_STS_REG_2,TX0_sign_i,0:0,206,r,w,'0,,
+TX0_STS_REG_2,TX0_sign_q,1:1,206,r,w,'0,,
+TX0_STS_REG_3,TX0_gain_ctrl_lsb,7:0,207,r,w,'0,,
+TX0_STS_REG_4,TX0_gain_ctrl_msb,2:0,208,r,w,'0,,
+TX0_STS_REG_4,TX0_final_gain_ctrl,7:3,208,r,w,'0,,
+EXT_CTRL_STS_REG,TX_en,3:0,209,r,w,'0,,
+EXT_CTRL_STS_REG,RX_en,7:4,209,r,w,'0,,
+EXT_CTRL_STS_REG_1,en_lna,3:0,210,r,w,'0,,
+EXT_CTRL_STS_REG_1,en_pa,7:4,210,r,w,'0,,
+EXT_CTRL_STS_REG_2,en_neg_sw,0:0,211,r,w,'0,,
+EXT_CTRL_STS_REG_2,en_pos_sw,1:1,211,r,w,'0,,
+EXT_CTRL_STS_REG_2,TX_lna_en,2:2,211,r,w,'0,,
+EXT_CTRL_STS_REG_2,det0_en,3:3,211,r,w,'0,,
+EXT_CTRL_STS_REG_2,det1_en,4:4,211,r,w,'0,,
+EXT_CTRL_STS_REG_2,det2_en,5:5,211,r,w,'0,,
+EXT_CTRL_STS_REG_2,det3_en,6:6,211,r,w,'0,,
