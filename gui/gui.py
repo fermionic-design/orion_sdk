@@ -503,12 +503,14 @@ def display__tab_registers():
 
             register_name = row[0]
             field_name = row[1]
+            field_bits = row[2]
+            reg_addr = int(row[3])
             rw_attr = row[4]
 
-            ttk.Label(scrollable_frame, text=register_name).grid(column=0, row=row_index + 1, padx=5, pady=5,
-                                                                 sticky="nsew")
-            ttk.Label(scrollable_frame, text=field_name).grid(column=1, row=row_index + 1, padx=5, pady=5,
-                                                              sticky="nsew")
+            ttk.Label(scrollable_frame, text=f'(0x{reg_addr:02X}) {register_name}',
+                      font=('Consolas', 9)).grid(column=0, row=row_index + 1, padx=5, pady=5, sticky="w")
+            ttk.Label(scrollable_frame, text=f'{f"[{field_bits}]":<7} {field_name}',
+                      font=('Consolas', 9)).grid(column=1, row=row_index + 1, padx=5, pady=5, sticky="w")
 
             entry = ttk.Entry(scrollable_frame, state="normal" if rw_attr != 'r' else "readonly")
             if rw_attr == 'r':
