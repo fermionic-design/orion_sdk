@@ -165,13 +165,6 @@ def init_rf(bias_mode, tr_mode, trx_mode, stg2_load_cfg, rf_en):
         ch_en = ch_en + (rf_en[i].get() << i)
     print(f'ch_en = {ch_en}')
 
-    if trx_mode == 'TX':
-        print(f'Enable TX: {bin(ch_en)}')
-        orion_hal.enable_tx(ch_en)
-    else:
-        print(f'Enable RX: {bin(ch_en)}')
-        orion_hal.enable_rx(ch_en)
-
     # TEMP
     if tr_mode == 'Register':
         orion_hal.set_tr_mode('INT_TR')
@@ -183,7 +176,7 @@ def init_rf(bias_mode, tr_mode, trx_mode, stg2_load_cfg, rf_en):
     else:
         orion_hal.set_trx_mode(0)
 
-    orion_hal.set_tr_mask(rx_mask=0x1)
+    orion_hal.set_tr_mask(rx_mask=rx_en, tx_mask=tx_en)
     orion_hal.cfg_stg2_load('REG' if stg2_load_cfg == 'Register' else 'PIN')
     orion_hal.enable_rx_correction(1)
     orion_hal.en_data_path(1)
@@ -212,6 +205,9 @@ def update_ch_en(trx_mode, rf_en):
     else:
         rx_en = mask
     print(f'tx_en = {bin(tx_en)}, rx_en = {bin(rx_en)}')
+
+    if orion_hal is not None:
+        orion_hal.set_tr_mask(tx_mask=tx_en, rx_mask=rx_en)
 
 
 def change_trx_mode(trx_mode, rf_en):
