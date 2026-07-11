@@ -195,7 +195,14 @@ def change_tr_mode(tr_mode):
         orion_hal.set_tr_mode('EXT_TR')
 
 
-def update_ch_en(trx_mode, rf_en):
+def update_ch_entry_state(rf_en, entry_lists):
+    for i in range(4):
+        state = 'normal' if rf_en[i].get() else 'disabled'
+        for entries in entry_lists:
+            entries[i].config(state=state)
+
+
+def update_ch_en(trx_mode, rf_en, entry_lists):
     global tx_en, rx_en
     mask = 0
     for i in range(4):
@@ -206,11 +213,13 @@ def update_ch_en(trx_mode, rf_en):
         rx_en = mask
     print(f'tx_en = {bin(tx_en)}, rx_en = {bin(rx_en)}')
 
+    update_ch_entry_state(rf_en, entry_lists)
+
     if orion_hal is not None:
         orion_hal.set_tr_mask(tx_mask=tx_en, rx_mask=rx_en)
 
 
-def change_trx_mode(trx_mode, rf_en):
+def change_trx_mode(trx_mode, rf_en, entry_lists):
     print(f'TRX Mode: {trx_mode}')
     if trx_mode=='RX':
         if orion_hal is not None:
@@ -222,6 +231,7 @@ def change_trx_mode(trx_mode, rf_en):
         mask = tx_en
     for i in range(4):
         rf_en[i].set((mask >> i) & 1)
+    update_ch_entry_state(rf_en, entry_lists)
 
 
 def change_stg2_load_cfg(stg2_load_cfg):
@@ -552,6 +562,8 @@ def display__tab_rf():
     pa_off_bias_entries = []
     lna_on_bias_entries = []
     lna_off_bias_entries = []
+    ch_entry_lists = [rf_gain_entries, rf_phase_entries, pa_on_bias_entries, pa_off_bias_entries,
+                      lna_on_bias_entries, lna_off_bias_entries]
 
     ttk.Label(tab_rf, text='Bias Mode').grid(column=0, row=0, padx=5, pady=5, sticky="nsew")
     combobox__bias_mode = ttk.Combobox(tab_rf, values=['Normal', 'Low Power'], state="readonly")
@@ -567,7 +579,8 @@ def display__tab_rf():
     combobox__trx_mode = ttk.Combobox(tab_rf, values=['TX', 'RX'], state="readonly")
     combobox__trx_mode.grid(column=5, row=0, padx=5, pady=5, sticky="nsew")
     combobox__trx_mode.current(1)
-    combobox__trx_mode.bind("<<ComboboxSelected>>", lambda event: change_trx_mode(combobox__trx_mode.get(), rf_en))
+    combobox__trx_mode.bind("<<ComboboxSelected>>",
+                            lambda event: change_trx_mode(combobox__trx_mode.get(), rf_en, ch_entry_lists))
 
     ttk.Label(tab_rf, text='STG2 Load Config').grid(column=6, row=0, padx=5, pady=5, sticky="nsew")
     combobox__stg2_load_cfg = ttk.Combobox(tab_rf, values=['Register', 'Load Pin'], state="readonly")
@@ -586,7 +599,7 @@ def display__tab_rf():
     for i in range(4):
         rf_en.append(tk.IntVar(value=0))
         rf_chk.append(ttk.Checkbutton(tab_rf, text=f"CH{i} Enable", state="!selected", variable=rf_en[i],
-                                      command=lambda: update_ch_en(combobox__trx_mode.get(), rf_en)))
+                                      command=lambda: update_ch_en(combobox__trx_mode.get(), rf_en, ch_entry_lists)))
         rf_chk[i].grid(column=2 * i, row=3, padx=5, pady=5, sticky="w")
 
         rf_gain_entries.append(ttk.Entry(tab_rf, state="normal"))
@@ -631,6 +644,7 @@ def display__tab_rf():
                                            lna_off_bias_entries)).grid(column=0, row=12, padx=5, pady=5,
                                                                        sticky="nsew")
 
+    update_ch_entry_state(rf_en, ch_entry_lists)
     tab_rf.after(100, lambda: remove_chkbox_selection(rf_chk))
 
 def display__tab_misc():
