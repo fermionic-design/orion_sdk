@@ -25,11 +25,15 @@ import serial.tools.list_ports
 import re
 import random
 import subprocess
+import pyvisa
+from instruments import instruments as instruments_cls
 
 spi = None
 orion = None
 orion_lut = None
 orion_hal = None
+rm = None
+instruments = None
 
 tx_en = 0
 rx_en = 0
@@ -42,7 +46,7 @@ def update_status_bar():
     status_bar_text = ''
     for i in status.items():
         # print(f'{i[0]}: {i[1]}')
-        status_bar_text += f'{i[0]}: {i[1]}\t'
+        status_bar_text += f'{i[0]}: {i[1]}\t\t'
     status_bar.config(text=status_bar_text)
 
 
@@ -112,6 +116,42 @@ def disconnect():
     global spi
     spi.close()
     status['Status'] = 'Disconnected'
+    update_status_bar()
+
+
+def connect_vna(resource):
+    global instruments
+
+    print(f'Connect VNA: {resource}')
+    if not resource:
+        print('No instrument selected')
+        return
+
+    instruments = instruments_cls(required_instruments=[], vna_id=resource)
+    if instruments.vna is None:
+        print('VNA connection failed')
+        return
+
+    instruments.vna.init()
+    instruments.vna.cfg(1, 'S21_GAIN')
+    instruments.vna.cfg(2, 'S21_PHASE')
+    instruments.vna.cfg_freq(start=7e9, stop=13e9, step=250e6)
+    instruments.vna.cfg_pwr(pwr=-20)
+
+    instruments.vna.add_marker(win_id=1, marker_id=1, val=8e9)
+    instruments.vna.add_marker(win_id=1, marker_id=2, val=10e9)
+    instruments.vna.add_marker(win_id=1, marker_id=3, val=12e9)
+
+    instruments.vna.add_marker(win_id=2, marker_id=1, val=8e9)
+    instruments.vna.add_marker(win_id=2, marker_id=2, val=10e9)
+    instruments.vna.add_marker(win_id=2, marker_id=3, val=12e9)
+
+    instruments.vna.set_y_axis(win_id=1, ref_level=-20, scale_per_div=5)
+    instruments.vna.set_y_axis(win_id=2, ref_level=0, scale_per_div=45)
+
+    instruments.vna.norm(win_id=2)
+
+    status['VNA'] = 'Connected'
     update_status_bar()
 
 
@@ -425,6 +465,27 @@ def display__tab_setup():
     ttk.Button(tab_setup, text="Disconnect", command=lambda: disconnect()).grid(column=3, row=0, padx=10, pady=10,
                                                                                 sticky="nsew")
     ttk.Button(tab_setup, text="Scan", command=scan_ports).grid(column=4, row=0, padx=10, pady=10, sticky="nsew")
+
+    ttk.Separator(tab_setup, orient='horizontal').grid(column=0, row=1, columnspan=5, sticky='ew', pady=5)
+
+    global rm
+    visa_resources = ()
+    try:
+        rm = pyvisa.ResourceManager()
+        visa_resources = rm.list_resources()
+        print('\nInstruments Available: ', visa_resources)
+    except Exception as e:
+        print(f'VISA not available: {e}')
+
+    ttk.Label(tab_setup, text="VISA Instruments").grid(column=0, row=2, padx=10, pady=10, sticky="nsew")
+    combobox__visa = ttk.Combobox(tab_setup, values=list(visa_resources), state="readonly", width=40)
+    combobox__visa.grid(column=1, row=2, padx=10, pady=10, sticky="nsew")
+    if visa_resources:
+        combobox__visa.current(0)
+
+    ttk.Button(tab_setup, text="Connect VNA",
+               command=lambda: connect_vna(combobox__visa.get())).grid(column=2, row=2, padx=10, pady=10,
+                                                                       sticky="nsew")
 
 
 def display__tab_registers():
