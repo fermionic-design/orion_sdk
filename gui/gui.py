@@ -711,6 +711,9 @@ root = tk.Tk()
 root.title("FD3R4411 Control Software @ FermionIC Design Pvt Ltd")
 root.geometry('1092x800')
 
+window_icon = tk.PhotoImage(file=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Favicon Logo.png'))
+root.iconphoto(True, window_icon)
+
 # Tab - START
 style = ttk.Style()
 style.configure("TNotebook.Tab", padding=[10, 5])
