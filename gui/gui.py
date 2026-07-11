@@ -1,11 +1,18 @@
 import sys
+import os
+
+# Anchor the working directory to the app folder so the relative paths
+# (../include, ../regs, ../final_lut, ../tests) resolve no matter where the
+# app is launched from. When frozen by PyInstaller, that is the exe's folder.
+if getattr(sys, 'frozen', False):
+    os.chdir(os.path.dirname(sys.executable))
+else:
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # from include.ORION_8G_12G import ORION_8G_12G
 # from include.ORION_8G_12G_lut import ORION_8G_12G_lut
 
 sys.path.append('../include')
-
-import os
 import tkinter as tk
 from tkinter import ttk
 import csv
@@ -311,10 +318,12 @@ def write_register_manual(addr, val):
     spi.write(int(addr, 16), int(val, 16))
 
 
-def read_register_manual(addr, val):
-    # print(f'Read Register Manual: {addr}, {val}')
+def read_register_manual(addr, entry__reg_val):
+    # print(f'Read Register Manual: {addr}')
     global spi
-    spi.read(int(addr, 16))
+    val = spi.read(int(addr, 16))
+    entry__reg_val.delete(0, tk.END)
+    entry__reg_val.insert(0, hex(val))
 
 
 def read_all_registers(entries, field_reg_dict):
@@ -468,7 +477,7 @@ def display__tab_registers():
                                                                                                         padx=5, pady=5,
                                                                                                         sticky="nsew")
     ttk.Button(scrollable_frame, text="Register Read",
-               command=lambda: read_register_manual(entry__reg_addr.get(), entry__reg_val.get())).grid(column=5, row=2,
+               command=lambda: read_register_manual(entry__reg_addr.get(), entry__reg_val)).grid(column=5, row=2,
                                                                                                        padx=5, pady=5,
                                                                                                        sticky="nsew")
 
@@ -654,9 +663,10 @@ def display__tab_misc():
     chk__osc_en.grid(column=0, row=0, padx=5, pady=5, sticky="nsew")
 
     ttk.Label(tab_misc, text="ADC Input Select").grid(column=1, row=0, padx=5, pady=5, sticky="nsew")
-    combobox__adc_sel = ttk.Combobox(tab_misc, values=['DET0', 'DET1', 'DET2', 'DET3', 'TEMP', 'GP7'], state="readonly")
+    combobox__adc_sel = ttk.Combobox(tab_misc, values=['DET0', 'DET1', 'DET2', 'DET3', 'TEMP', 'GP4', 'GP5', 'GP6',
+                                                       'GP7'], state="readonly")
     combobox__adc_sel.grid(column=2, row=0, padx=5, pady=5, sticky="nsew")
-    combobox__adc_sel.current(5)
+    combobox__adc_sel.current(8)
     combobox__adc_sel.bind("<<ComboboxSelected>>", lambda event: adc_setup(osc_en.get(), combobox__adc_sel.get()))
 
     ttk.Button(tab_misc, text="ADC Read", command=lambda: adc_read(entry__adc_val)).grid(column=3, row=0, padx=5,
@@ -716,6 +726,12 @@ script_dir = '../tests'
 
 status['Status'] = 'Disconnected'
 status['RF'] = 'Not Initialized'
+
+# Give the process its own taskbar identity so Windows shows the window icon
+# instead of the python.exe icon
+if sys.platform == 'win32':
+    import ctypes
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('FermionIC.FD3R4411.ControlSoftware')
 
 root = tk.Tk()
 root.title("FD3R4411 Control Software @ FermionIC Design Pvt Ltd")
