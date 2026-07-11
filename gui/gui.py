@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 
 # Anchor the working directory to the app folder so the relative paths
 # (../include, ../regs, ../final_lut, ../tests) resolve no matter where the
@@ -658,6 +659,91 @@ def display__tab_rf():
     update_ch_entry_state(rf_en, ch_entry_lists)
     tab_rf.after(100, lambda: remove_chkbox_selection(rf_chk))
 
+def change_sweep_mode(mode, trx_mode, channel, entry__sweep_phase, entry__sweep_gain, verbose=True):
+    if verbose:
+        print(f'Sweep Mode: {mode}, TRX Mode = {trx_mode}, Channel = {channel}')
+    if mode == 'Phase':
+        entry__sweep_phase.config(state='disabled')
+        entry__sweep_gain.config(state='normal')
+    else:
+        entry__sweep_phase.config(state='normal')
+        entry__sweep_gain.config(state='disabled')
+
+
+def run_sweep(mode, trx_mode, channel, phase, gain):
+    print(f'Run Sweep: Mode = {mode}, TRX Mode = {trx_mode}, Channel = {channel}, Phase = {phase}, Gain = {gain}')
+
+    global orion_hal
+
+    if trx_mode == 'TX':
+        orion_hal.set_trx_mode(1)
+    else:
+        orion_hal.set_trx_mode(0)
+
+    ch_en = 1<<int(channel)
+    print(ch_en)
+    orion_hal.set_tr_mask(rx_mask=ch_en, tx_mask=ch_en)
+    if mode=='Phase':
+        g_idx = round(int(gain)/0.5)
+        for p_idx in range(4,125):
+            print(f'p_idx = {p_idx}')
+            orion_hal.set_lut_idx(p_idx, g_idx, ch_en)
+            orion_hal.set_lut_idx(p_idx, g_idx, ch_en << 1)
+            orion_hal.stg2_load()
+            time.sleep(0.5)
+    else:
+        if trx_mode=='TX':
+            p_idx = round(int(phase)/2.8125)
+        else:
+            p_idx = round(int(phase)/2.975) + 4
+        for g_idx in range(0,64):
+            print(f'g_idx = {g_idx}')
+            orion_hal.set_lut_idx(p_idx, g_idx, ch_en)
+            orion_hal.set_lut_idx(p_idx, g_idx, ch_en << 1)
+            orion_hal.stg2_load()
+            time.sleep(0.5)
+
+
+def display__tab_sweep():
+    ttk.Label(tab_sweep, text='Mode').grid(column=0, row=0, padx=5, pady=5, sticky="w")
+    combobox__sweep_mode = ttk.Combobox(tab_sweep, values=['Phase', 'Gain'], state="readonly")
+    combobox__sweep_mode.grid(column=1, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__sweep_mode.current(0)
+    combobox__sweep_mode.bind("<<ComboboxSelected>>",
+                              lambda event: change_sweep_mode(combobox__sweep_mode.get(), combobox__sweep_trx_mode.get(),
+                                                              combobox__sweep_ch.get(), entry__sweep_phase,
+                                                              entry__sweep_gain))
+
+    ttk.Label(tab_sweep, text='TRX Mode').grid(column=2, row=0, padx=5, pady=5, sticky="w")
+    combobox__sweep_trx_mode = ttk.Combobox(tab_sweep, values=['TX', 'RX'], state="readonly")
+    combobox__sweep_trx_mode.grid(column=3, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__sweep_trx_mode.current(0)
+
+    ttk.Label(tab_sweep, text='Channel').grid(column=4, row=0, padx=5, pady=5, sticky="w")
+    combobox__sweep_ch = ttk.Combobox(tab_sweep, values=['0', '1', '2', '3'], state="readonly")
+    combobox__sweep_ch.grid(column=5, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__sweep_ch.current(0)
+
+    ttk.Label(tab_sweep, text='Phase').grid(column=0, row=1, padx=5, pady=5, sticky="w")
+    entry__sweep_phase = ttk.Entry(tab_sweep)
+    entry__sweep_phase.grid(column=1, row=1, padx=5, pady=5, sticky="nsew")
+    entry__sweep_phase.insert(0, "0")
+
+    ttk.Label(tab_sweep, text='Gain').grid(column=2, row=1, padx=5, pady=5, sticky="w")
+    entry__sweep_gain = ttk.Entry(tab_sweep)
+    entry__sweep_gain.grid(column=3, row=1, padx=5, pady=5, sticky="nsew")
+    entry__sweep_gain.insert(0, "0")
+
+    ttk.Button(tab_sweep, text="Run",
+               command=lambda: run_sweep(combobox__sweep_mode.get(), combobox__sweep_trx_mode.get(),
+                                         combobox__sweep_ch.get(), entry__sweep_phase.get(),
+                                         entry__sweep_gain.get())).grid(column=5, row=1, padx=5, pady=5,
+                                                                        sticky="nsew")
+
+    change_sweep_mode(combobox__sweep_mode.get(), combobox__sweep_trx_mode.get(), combobox__sweep_ch.get(),
+                      entry__sweep_phase, entry__sweep_gain, verbose=False)
+
+
 def display__tab_misc():
     osc_en = tk.IntVar(value=0)
     chk__osc_en = (ttk.Checkbutton(tab_misc, text="Oscillator Enable", variable=osc_en,
@@ -749,12 +835,14 @@ tabControl = ttk.Notebook(root, style='TNotebook')
 
 tab_setup = ttk.Frame(tabControl)
 tab_rf = ttk.Frame(tabControl)
+tab_sweep = ttk.Frame(tabControl)
 tab_misc = ttk.Frame(tabControl)
 tab_registers = ttk.Frame(tabControl)
 tab_scripts = ttk.Frame(tabControl)
 
 tabControl.add(tab_setup, text='Setup')
 tabControl.add(tab_rf, text='RF Control')
+tabControl.add(tab_sweep, text='Phase/Gain Sweep')
 tabControl.add(tab_misc, text='Misc Control')
 tabControl.add(tab_registers, text='Registers')
 tabControl.add(tab_scripts, text='Scripts')
@@ -764,6 +852,7 @@ tabControl.select(tab_setup)
 
 display__tab_setup()
 display__tab_rf()
+display__tab_sweep()
 display__tab_registers()
 display__tab_misc()
 display__tab_scripts()
