@@ -23,6 +23,9 @@ orion = None
 orion_lut = None
 orion_hal = None
 
+tx_en = 0
+rx_en = 0
+
 status = {}
 
 
@@ -191,22 +194,44 @@ def init_rf(bias_mode, tr_mode, trx_mode, stg2_load_cfg, rf_en):
 
 def change_tr_mode(tr_mode):
     print(f'TR Control Mode: {tr_mode}')
+    if orion_hal is None:
+        return
     if tr_mode=='Register':
         orion_hal.set_tr_mode('INT_TR')
     else:
         orion_hal.set_tr_mode('EXT_TR')
 
 
-def change_trx_mode(trx_mode):
+def update_ch_en(trx_mode, rf_en):
+    global tx_en, rx_en
+    mask = 0
+    for i in range(4):
+        mask |= rf_en[i].get() << i
+    if trx_mode == 'TX':
+        tx_en = mask
+    else:
+        rx_en = mask
+    print(f'tx_en = {bin(tx_en)}, rx_en = {bin(rx_en)}')
+
+
+def change_trx_mode(trx_mode, rf_en):
     print(f'TRX Mode: {trx_mode}')
     if trx_mode=='RX':
-        orion_hal.set_trx_mode(0)
+        if orion_hal is not None:
+            orion_hal.set_trx_mode(0)
+        mask = rx_en
     else:
-        orion_hal.set_trx_mode(1)
+        if orion_hal is not None:
+            orion_hal.set_trx_mode(1)
+        mask = tx_en
+    for i in range(4):
+        rf_en[i].set((mask >> i) & 1)
 
 
 def change_stg2_load_cfg(stg2_load_cfg):
     print(f'STG2 Load Cfg: {stg2_load_cfg}')
+    if orion_hal is None:
+        return
     orion_hal.cfg_stg2_load('REG' if stg2_load_cfg == 'Register' else 'PIN')
 
 
@@ -546,7 +571,7 @@ def display__tab_rf():
     combobox__trx_mode = ttk.Combobox(tab_rf, values=['TX', 'RX'], state="readonly")
     combobox__trx_mode.grid(column=5, row=0, padx=5, pady=5, sticky="nsew")
     combobox__trx_mode.current(1)
-    combobox__trx_mode.bind("<<ComboboxSelected>>", lambda event: change_trx_mode(combobox__trx_mode.get()))
+    combobox__trx_mode.bind("<<ComboboxSelected>>", lambda event: change_trx_mode(combobox__trx_mode.get(), rf_en))
 
     ttk.Label(tab_rf, text='STG2 Load Config').grid(column=6, row=0, padx=5, pady=5, sticky="nsew")
     combobox__stg2_load_cfg = ttk.Combobox(tab_rf, values=['Register', 'Load Pin'], state="readonly")
@@ -557,56 +582,57 @@ def display__tab_rf():
 
     ttk.Button(tab_rf, text="Initialize RF",
                command=lambda: init_rf(combobox__bias_mode.get(), combobox__tr_mode.get(), combobox__trx_mode.get(),
-                                       combobox__stg2_load_cfg.get(), rf_en)).grid(column=8, row=0, padx=5, pady=5,
+                                       combobox__stg2_load_cfg.get(), rf_en)).grid(column=0, row=1, padx=5, pady=5,
                                                                                    sticky="nsew")
 
-    ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=1, columnspan=8, sticky='ew', pady=5)
+    ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=2, columnspan=8, sticky='ew', pady=5)
 
     for i in range(4):
         rf_en.append(tk.IntVar(value=0))
-        rf_chk.append(ttk.Checkbutton(tab_rf, text=f"CH{i} Enable", state="!selected", variable=rf_en[i]))
-        rf_chk[i].grid(column=2 * i, row=2, padx=5, pady=5, sticky="w")
+        rf_chk.append(ttk.Checkbutton(tab_rf, text=f"CH{i} Enable", state="!selected", variable=rf_en[i],
+                                      command=lambda: update_ch_en(combobox__trx_mode.get(), rf_en)))
+        rf_chk[i].grid(column=2 * i, row=3, padx=5, pady=5, sticky="w")
 
         rf_gain_entries.append(ttk.Entry(tab_rf, state="normal"))
         rf_gain_entries[i].insert(0, "0")
-        rf_gain_entries[i].grid(column=2 * i + 1, row=3, padx=5, pady=5)
-        ttk.Label(tab_rf, text=f"CH{i} Gain").grid(column=2 * i, row=3, padx=5, pady=5, sticky="w")
+        rf_gain_entries[i].grid(column=2 * i + 1, row=4, padx=5, pady=5)
+        ttk.Label(tab_rf, text=f"CH{i} Gain").grid(column=2 * i, row=4, padx=5, pady=5, sticky="w")
 
         rf_phase_entries.append(ttk.Entry(tab_rf, state="normal"))
-        rf_phase_entries[i].grid(column=2 * i + 1, row=4, padx=5, pady=5)
+        rf_phase_entries[i].grid(column=2 * i + 1, row=5, padx=5, pady=5)
         rf_phase_entries[i].insert(0, "0")
-        ttk.Label(tab_rf, text=f"CH{i} Phase").grid(column=2 * i, row=4, padx=5, pady=5, sticky="w")
+        ttk.Label(tab_rf, text=f"CH{i} Phase").grid(column=2 * i, row=5, padx=5, pady=5, sticky="w")
 
-        ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=6, columnspan=8, sticky='ew', pady=5)
+        ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=7, columnspan=8, sticky='ew', pady=5)
 
-        ttk.Label(tab_rf, text=f"CH{i} PA ON Bias").grid(column=2 * i, row=7, padx=5, pady=5, sticky="w")
+        ttk.Label(tab_rf, text=f"CH{i} PA ON Bias").grid(column=2 * i, row=8, padx=5, pady=5, sticky="w")
         pa_on_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
         pa_on_bias_entries[i].insert(0, "100")
-        pa_on_bias_entries[i].grid(column=2 * i + 1, row=7, padx=5, pady=5)
+        pa_on_bias_entries[i].grid(column=2 * i + 1, row=8, padx=5, pady=5)
 
-        ttk.Label(tab_rf, text=f"CH{i} PA OFF Bias").grid(column=2 * i, row=8, padx=5, pady=5, sticky="w")
+        ttk.Label(tab_rf, text=f"CH{i} PA OFF Bias").grid(column=2 * i, row=9, padx=5, pady=5, sticky="w")
         pa_off_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
         pa_off_bias_entries[i].insert(0, "200")
-        pa_off_bias_entries[i].grid(column=2 * i + 1, row=8, padx=5, pady=5)
+        pa_off_bias_entries[i].grid(column=2 * i + 1, row=9, padx=5, pady=5)
 
-        ttk.Label(tab_rf, text=f"CH{i} LNA ON Bias").grid(column=2 * i, row=9, padx=5, pady=5, sticky="w")
+        ttk.Label(tab_rf, text=f"CH{i} LNA ON Bias").grid(column=2 * i, row=10, padx=5, pady=5, sticky="w")
         lna_on_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
         lna_on_bias_entries[i].insert(0, "100")
-        lna_on_bias_entries[i].grid(column=2 * i + 1, row=9, padx=5, pady=5)
+        lna_on_bias_entries[i].grid(column=2 * i + 1, row=10, padx=5, pady=5)
 
-        ttk.Label(tab_rf, text=f"CH{i} LNA OFF Bias").grid(column=2 * i, row=10, padx=5, pady=5, sticky="w")
+        ttk.Label(tab_rf, text=f"CH{i} LNA OFF Bias").grid(column=2 * i, row=11, padx=5, pady=5, sticky="w")
         lna_off_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
         lna_off_bias_entries[i].insert(0, "200")
-        lna_off_bias_entries[i].grid(column=2 * i + 1, row=10, padx=5, pady=5)
+        lna_off_bias_entries[i].grid(column=2 * i + 1, row=11, padx=5, pady=5)
 
     ttk.Button(tab_rf, text="Load RF",
                command=lambda: load_rf(rf_en, rf_gain_entries, rf_phase_entries, pa_on_bias_entries,
                                        pa_off_bias_entries, lna_on_bias_entries,
-                                       lna_off_bias_entries)).grid(column=0, row=5, padx=5, pady=5, sticky="nsew")
+                                       lna_off_bias_entries)).grid(column=0, row=6, padx=5, pady=5, sticky="nsew")
 
     ttk.Button(tab_rf, text="Update Bias",
                command=lambda: update_bias(rf_en, pa_on_bias_entries, pa_off_bias_entries, lna_on_bias_entries,
-                                           lna_off_bias_entries)).grid(column=0, row=11, padx=5, pady=5,
+                                           lna_off_bias_entries)).grid(column=0, row=12, padx=5, pady=5,
                                                                        sticky="nsew")
 
     tab_rf.after(100, lambda: remove_chkbox_selection(rf_chk))
@@ -683,7 +709,7 @@ status['RF'] = 'Not Initialized'
 
 root = tk.Tk()
 root.title("FD3R4411 Control Software @ FermionIC Design Pvt Ltd")
-root.geometry('1300x800')
+root.geometry('1092x800')
 
 # Tab - START
 style = ttk.Style()
