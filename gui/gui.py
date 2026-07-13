@@ -26,6 +26,9 @@ import re
 import random
 import subprocess
 import pyvisa
+import numpy as np
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from instruments import instruments as instruments_cls
 
 spi = None
@@ -34,6 +37,14 @@ orion_lut = None
 orion_hal = None
 rm = None
 instruments = None
+
+# VNA frequency sweep settings, also used to derive the trace point frequencies
+vna_freq_start = 7e9
+vna_freq_stop = 13e9
+vna_freq_step = 250e6
+
+# Data captured by the last run_sweep: one gain/phase trace per sweep step
+sweep_data = {'mode': None, 'trx_mode': None, 'channel': None, 'idx': [], 'gain': [], 'phase': []}
 
 tx_en = 0
 rx_en = 0
@@ -135,7 +146,7 @@ def connect_vna(resource):
     instruments.vna.init()
     instruments.vna.cfg(1, 'S21_GAIN')
     instruments.vna.cfg(2, 'S21_PHASE')
-    instruments.vna.cfg_freq(start=7e9, stop=13e9, step=250e6)
+    instruments.vna.cfg_freq(start=vna_freq_start, stop=vna_freq_stop, step=vna_freq_step)
     instruments.vna.cfg_pwr(pwr=-20)
 
     instruments.vna.add_marker(win_id=1, marker_id=1, val=8e9)
@@ -731,10 +742,31 @@ def change_sweep_mode(mode, trx_mode, channel, entry__sweep_phase, entry__sweep_
         entry__sweep_gain.config(state='disabled')
 
 
+def read_vna_s21():
+    s21m = np.array(instruments.vna.query(':CALC:MEAS1:DATA:FDATA?').strip().split(","), dtype=float)
+    s21p = np.array(instruments.vna.query(':CALC:MEAS2:DATA:FDATA?').strip().split(","), dtype=float)
+    return s21m, s21p
+
+
+def store_sweep_point(idx, s21m, s21p):
+    sweep_data['idx'].append(idx)
+    sweep_data['gain'].append(s21m)
+    sweep_data['phase'].append(s21p)
+    print(f'S21 Gain (mid) = {s21m[len(s21m) // 2]}, S21 Phase (mid) = {s21p[len(s21p) // 2]}')
+
+
 def run_sweep(mode, trx_mode, channel, phase, gain):
     print(f'Run Sweep: Mode = {mode}, TRX Mode = {trx_mode}, Channel = {channel}, Phase = {phase}, Gain = {gain}')
 
     global orion_hal
+
+    if orion_hal is None:
+        print('Device not connected, connect first')
+        return
+
+    capture = instruments is not None and instruments.vna is not None
+    if not capture:
+        print('VNA not connected, sweeping without capture')
 
     if trx_mode == 'TX':
         orion_hal.set_trx_mode(1)
@@ -744,6 +776,15 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
     ch_en = 1<<int(channel)
     print(ch_en)
     orion_hal.set_tr_mask(rx_mask=ch_en, tx_mask=ch_en)
+
+    if capture:
+        sweep_data['mode'] = mode
+        sweep_data['trx_mode'] = trx_mode
+        sweep_data['channel'] = channel
+        sweep_data['idx'] = []
+        sweep_data['gain'] = []
+        sweep_data['phase'] = []
+
     if mode=='Phase':
         g_idx = round(int(gain)/0.5)
         for p_idx in range(4,125):
@@ -752,6 +793,9 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
             orion_hal.set_lut_idx(p_idx, g_idx, ch_en << 1)
             orion_hal.stg2_load()
             time.sleep(0.5)
+            if capture:
+                s21m, s21p = read_vna_s21()
+                store_sweep_point(p_idx, s21m, s21p)
     else:
         if trx_mode=='TX':
             p_idx = round(int(phase)/2.8125)
@@ -763,6 +807,56 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
             orion_hal.set_lut_idx(p_idx, g_idx, ch_en << 1)
             orion_hal.stg2_load()
             time.sleep(0.5)
+            if capture:
+                s21m, s21p = read_vna_s21()
+                store_sweep_point(g_idx, s21m, s21p)
+
+
+def plot_sweep(freq_mhz):
+    print(f'Plot Sweep: Frequency = {freq_mhz} MHz')
+
+    if not sweep_data['idx']:
+        print('No sweep data available, run a sweep first')
+        return
+
+    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
+    freq_idx = int(np.argmin(np.abs(freqs_mhz - float(freq_mhz))))
+
+    if sweep_data['mode'] == 'Phase':
+        data = np.array(sweep_data['phase'])[:, freq_idx]
+        # Reference to the first sweep step and wrap into +/-180
+        data = data - data[0]
+        data = (data + 180) % 360 - 180
+        y_label = 'Phase (deg)'
+        y_lim = (-200, 200)
+        x_label = 'Phase LUT Index'
+    else:
+        data = np.array(sweep_data['gain'])[:, freq_idx]
+        data = data - data[0]
+        y_label = 'Gain (dB)'
+        y_lim = (-32, 0)
+        x_label = 'Gain LUT Index'
+
+    fig = Figure(figsize=(8, 4), dpi=100)
+    ax = fig.add_subplot(111)
+    ax.plot(sweep_data['idx'], data, marker='.')
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_ylim(*y_lim)
+    ax.grid(True)
+    ax.set_title(f"{sweep_data['mode']} Sweep: {sweep_data['trx_mode']} CH{sweep_data['channel']} "
+                 f"@ {freqs_mhz[freq_idx]:g} MHz")
+    fig.tight_layout()
+
+    for child in frame__sweep_plot.winfo_children():
+        child.destroy()
+    canvas = FigureCanvasTkAgg(fig, master=frame__sweep_plot)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill='both', expand=True)
+
+
+def analyze_sweep(freq_mhz):
+    print(f'Analyze Sweep: Frequency = {freq_mhz} MHz')
 
 
 def display__tab_sweep():
@@ -800,6 +894,34 @@ def display__tab_sweep():
                                          combobox__sweep_ch.get(), entry__sweep_phase.get(),
                                          entry__sweep_gain.get())).grid(column=5, row=1, padx=5, pady=5,
                                                                         sticky="nsew")
+
+    ttk.Separator(tab_sweep, orient='horizontal').grid(column=0, row=2, columnspan=6, sticky='ew', pady=5)
+
+    ttk.Label(tab_sweep, text='Frequency (MHz)').grid(column=0, row=3, padx=5, pady=5, sticky="w")
+    freqs_mhz = [f'{f / 1e6:g}' for f in np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step)]
+    combobox__sweep_freq = ttk.Combobox(tab_sweep, values=freqs_mhz, state="readonly")
+    combobox__sweep_freq.grid(column=1, row=3, padx=5, pady=5, sticky="nsew")
+    combobox__sweep_freq.current(len(freqs_mhz) // 2)
+
+    ttk.Button(tab_sweep, text="Plot",
+               command=lambda: plot_sweep(combobox__sweep_freq.get())).grid(column=2, row=3, padx=5, pady=5,
+                                                                            sticky="nsew")
+    ttk.Button(tab_sweep, text="Analyze",
+               command=lambda: analyze_sweep(combobox__sweep_freq.get())).grid(column=3, row=3, padx=5, pady=5,
+                                                                               sticky="nsew")
+
+    # Stats readout above the plot container
+    global label__sweep_stats
+    label__sweep_stats = ttk.Label(tab_sweep, text='Stats: -')
+    label__sweep_stats.grid(column=0, row=4, columnspan=6, padx=5, pady=5, sticky="w")
+
+    # Placeholder container for the sweep plot
+    global frame__sweep_plot
+    frame__sweep_plot = ttk.Frame(tab_sweep, relief='groove', borderwidth=1)
+    frame__sweep_plot.grid(column=0, row=5, columnspan=6, padx=5, pady=10, sticky="nsew")
+    tab_sweep.grid_rowconfigure(5, weight=1)
+    for col in range(6):
+        tab_sweep.grid_columnconfigure(col, weight=1)
 
     change_sweep_mode(combobox__sweep_mode.get(), combobox__sweep_trx_mode.get(), combobox__sweep_ch.get(),
                       entry__sweep_phase, entry__sweep_gain, verbose=False)
