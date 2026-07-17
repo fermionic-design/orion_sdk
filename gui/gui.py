@@ -323,12 +323,12 @@ def load_rf(rf_en, rf_gain_entries, rf_phase_entries, pa_on_bias_entries, pa_off
         else:
             orion_hal.set_freq('9G')
             # orion_hal.enable_rx_correction(1)
-            # orion_hal.set_lut_idx(round(float(rf_phase_entries[i].get()) / 2.975) + 4,
-            #                       round((float(rf_gain_entries[i].get())) / 0.5), ant_sel)
-            orion_hal.set_lut_idx(round(int(rf_phase_entries[0].get()) / 2.975) + 4,
-                                  round(int(rf_gain_entries[0].get()) / 0.5), ant_sel)
-            orion_hal.set_lut_idx(round(int(rf_phase_entries[0].get()) / 2.975) + 4,
-                                  round(int(rf_gain_entries[0].get()) / 0.5), ant_sel<<1)
+            orion_hal.set_lut_idx(round(float(rf_phase_entries[i].get()) / 2.975) + 4,
+                                  round((float(rf_gain_entries[i].get())) / 0.5), ant_sel)
+            # orion_hal.set_lut_idx(round(int(rf_phase_entries[0].get()) / 2.975) + 4,
+            #                       round(int(rf_gain_entries[0].get()) / 0.5), ant_sel)
+            # orion_hal.set_lut_idx(round(int(rf_phase_entries[0].get()) / 2.975) + 4,
+            #                       round(int(rf_gain_entries[0].get()) / 0.5), ant_sel<<1)
             # orion_hal.set_lut_idx(round(abs(rf_phase_entries[i].get())/2.975)+4, round((int(rf_gain_entries[i].get())+1)/0.5), ant_sel)
         orion_hal.stg2_load()
 
@@ -768,6 +768,9 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
     if not capture:
         print('VNA not connected, sweeping without capture')
 
+    if capture:
+        instruments.vna.cfg_pwr(pwr=-20)
+
     if trx_mode == 'TX':
         orion_hal.set_trx_mode(1)
     else:
@@ -810,6 +813,10 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
             if capture:
                 s21m, s21p = read_vna_s21()
                 store_sweep_point(g_idx, s21m, s21p)
+
+    if capture:
+        instruments.vna.cfg_pwr(pwr=-60)
+        instruments.vna.write(":OUTP OFF")
 
 
 def plot_sweep(freq_mhz):
