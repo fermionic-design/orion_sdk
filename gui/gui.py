@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import threading
 
 # Anchor the working directory to the app folder so the relative paths
 # (../include, ../regs, ../final_lut, ../tests) resolve no matter where the
@@ -770,6 +771,7 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
 
     if capture:
         instruments.vna.cfg_pwr(pwr=-20)
+        instruments.vna.write(":OUTP ON")
 
     if trx_mode == 'TX':
         orion_hal.set_trx_mode(1)
@@ -790,7 +792,8 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
 
     if mode=='Phase':
         g_idx = round(int(gain)/0.5)
-        for p_idx in range(4,125):
+        p_idxs = range(4,125)
+        for i, p_idx in enumerate(p_idxs):
             print(f'p_idx = {p_idx}')
             orion_hal.set_lut_idx(p_idx, g_idx, ch_en)
             orion_hal.set_lut_idx(p_idx, g_idx, ch_en << 1)
@@ -799,12 +802,14 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
             if capture:
                 s21m, s21p = read_vna_s21()
                 store_sweep_point(p_idx, s21m, s21p)
+            update_sweep_progress((i + 1) / len(p_idxs) * 100)
     else:
         if trx_mode=='TX':
             p_idx = round(int(phase)/2.8125)
         else:
             p_idx = round(int(phase)/2.975) + 4
-        for g_idx in range(0,64):
+        g_idxs = range(0,64)
+        for i, g_idx in enumerate(g_idxs):
             print(f'g_idx = {g_idx}')
             orion_hal.set_lut_idx(p_idx, g_idx, ch_en)
             orion_hal.set_lut_idx(p_idx, g_idx, ch_en << 1)
@@ -813,48 +818,80 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
             if capture:
                 s21m, s21p = read_vna_s21()
                 store_sweep_point(g_idx, s21m, s21p)
+            update_sweep_progress((i + 1) / len(g_idxs) * 100)
 
     if capture:
         instruments.vna.cfg_pwr(pwr=-60)
         instruments.vna.write(":OUTP OFF")
 
 
-def plot_sweep(freq_mhz):
-    print(f'Plot Sweep: Frequency = {freq_mhz} MHz')
+# Run the sweep on a worker thread so the Tk event loop keeps servicing the
+# window; the Run button is disabled until the sweep finishes.
+sweep_thread = None
 
-    if not sweep_data['idx']:
-        print('No sweep data available, run a sweep first')
+
+def update_sweep_progress(pct):
+    # Called from the sweep worker thread, so hand the widget update to the
+    # Tk main loop
+    root.after(0, lambda: progressbar__sweep.config(value=pct))
+
+
+def start_sweep(mode, trx_mode, channel, phase, gain):
+    global sweep_thread
+
+    if sweep_thread is not None and sweep_thread.is_alive():
+        print('Sweep already in progress')
         return
 
-    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
-    freq_idx = int(np.argmin(np.abs(freqs_mhz - float(freq_mhz))))
+    button__sweep_run.config(state='disabled')
+    progressbar__sweep.config(value=0)
+
+    def worker():
+        try:
+            run_sweep(mode, trx_mode, channel, phase, gain)
+        finally:
+            root.after(0, lambda: button__sweep_run.config(state='normal'))
+
+    sweep_thread = threading.Thread(target=worker, daemon=True)
+    sweep_thread.start()
+
+
+def get_sweep_traces():
+    # Gain/phase traces (sweep steps x frequencies), referenced to the first
+    # sweep step, phase wrapped into +/-180
+    gain = np.array(sweep_data['gain'])
+    phase = np.array(sweep_data['phase'])
+    gain = gain - gain[0]
+    phase = (phase - phase[0] + 180) % 360 - 180
+    return gain, phase
+
+
+def get_sweep_errors():
+    # Error = measured delta vs the ideal LUT step response.
+    # Phase LSB matches the idx conversion in run_sweep; gain LSB is -0.5 dB
+    # per index (target_gain_dB = -g_idx * 0.5 in the HAL).
+    gain, phase = get_sweep_traces()
+    idx = np.array(sweep_data['idx'])
 
     if sweep_data['mode'] == 'Phase':
-        data = np.array(sweep_data['phase'])[:, freq_idx]
-        # Reference to the first sweep step and wrap into +/-180
-        data = data - data[0]
-        data = (data + 180) % 360 - 180
-        y_label = 'Phase (deg)'
-        y_lim = (-200, 200)
-        x_label = 'Phase LUT Index'
+        phase_lsb = 2.8125 if sweep_data['trx_mode'] == 'TX' else 2.975
+        phase_ideal = (idx - idx[0]) * phase_lsb
+        gain_ideal = np.zeros_like(idx, dtype=float)
     else:
-        data = np.array(sweep_data['gain'])[:, freq_idx]
-        data = data - data[0]
-        y_label = 'Gain (dB)'
-        y_lim = (-32, 0)
-        x_label = 'Gain LUT Index'
+        phase_ideal = np.zeros_like(idx, dtype=float)
+        gain_ideal = -(idx - idx[0]) * 0.5
 
-    fig = Figure(figsize=(8, 4), dpi=100)
-    ax = fig.add_subplot(111)
-    ax.plot(sweep_data['idx'], data, marker='.')
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
-    ax.set_ylim(*y_lim)
-    ax.grid(True)
-    ax.set_title(f"{sweep_data['mode']} Sweep: {sweep_data['trx_mode']} CH{sweep_data['channel']} "
-                 f"@ {freqs_mhz[freq_idx]:g} MHz")
-    fig.tight_layout()
+    gain_err = gain - gain_ideal[:, None]
+    phase_err = (phase - phase_ideal[:, None] + 180) % 360 - 180
 
+    # Reference the errors to the per-frequency mean rather than the first
+    # sweep step, so an offset at the first point doesn't bias the stats
+    gain_err = gain_err - np.mean(gain_err, axis=0)
+    phase_err = phase_err - np.mean(phase_err, axis=0)
+    return gain_err, phase_err
+
+
+def show_sweep_figure(fig):
     for child in frame__sweep_plot.winfo_children():
         child.destroy()
     canvas = FigureCanvasTkAgg(fig, master=frame__sweep_plot)
@@ -862,8 +899,151 @@ def plot_sweep(freq_mhz):
     canvas.get_tk_widget().pack(fill='both', expand=True)
 
 
+def sweep_plot_ready():
+    if not sweep_data['idx']:
+        print('No sweep data available, run a sweep first')
+        return False
+    return True
+
+
+def sweep_title():
+    return f"{sweep_data['mode']} Sweep: {sweep_data['trx_mode']} CH{sweep_data['channel']}"
+
+
+def sweep_x_label():
+    return f"{sweep_data['mode']} LUT Index"
+
+
+def plot_sweep(freq_mhz):
+    print(f'Plot Sweep: Frequency = {freq_mhz} MHz')
+
+    if not sweep_plot_ready():
+        return
+
+    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
+    freq_idx = int(np.argmin(np.abs(freqs_mhz - float(freq_mhz))))
+
+    gain, phase = get_sweep_traces()
+
+    fig = Figure(figsize=(8, 5), dpi=100)
+    ax_g = fig.add_subplot(211)
+    ax_p = fig.add_subplot(212, sharex=ax_g)
+
+    ax_g.plot(sweep_data['idx'], gain[:, freq_idx], marker='.')
+    ax_g.set_ylabel('Gain (dB)')
+    if sweep_data['mode'] == 'Gain':
+        ax_g.set_ylim(-32, 0)
+    ax_g.grid(True)
+    ax_g.set_title(f"{sweep_title()} @ {freqs_mhz[freq_idx]:g} MHz")
+
+    ax_p.plot(sweep_data['idx'], phase[:, freq_idx], marker='.', color='tab:orange')
+    ax_p.set_ylabel('Phase (deg)')
+    if sweep_data['mode'] == 'Phase':
+        ax_p.set_ylim(-200, 200)
+    ax_p.set_xlabel(sweep_x_label())
+    ax_p.grid(True)
+
+    fig.tight_layout()
+    show_sweep_figure(fig)
+
+
+def plot_sweep_errors(freq_mhz):
+    print(f'Plot Sweep Errors: Frequency = {freq_mhz} MHz')
+
+    if not sweep_plot_ready():
+        return
+
+    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
+    freq_idx = int(np.argmin(np.abs(freqs_mhz - float(freq_mhz))))
+
+    gain_err, phase_err = get_sweep_errors()
+
+    fig = Figure(figsize=(8, 5), dpi=100)
+    ax_g = fig.add_subplot(211)
+    ax_p = fig.add_subplot(212, sharex=ax_g)
+
+    ax_g.plot(sweep_data['idx'], gain_err[:, freq_idx], marker='.')
+    ax_g.set_ylabel('Gain Error (dB)')
+    ax_g.grid(True)
+    ax_g.set_title(f"{sweep_title()} Errors @ {freqs_mhz[freq_idx]:g} MHz")
+
+    ax_p.plot(sweep_data['idx'], phase_err[:, freq_idx], marker='.', color='tab:orange')
+    ax_p.set_ylabel('Phase Error (deg)')
+    ax_p.set_xlabel(sweep_x_label())
+    ax_p.grid(True)
+
+    fig.tight_layout()
+    show_sweep_figure(fig)
+
+
+def plot_sweep_rms_errors(freq_mhz):
+    print(f'Plot Sweep RMS Errors: Frequency = {freq_mhz} MHz')
+
+    if not sweep_plot_ready():
+        return
+
+    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
+
+    # Restrict the stats to a 1 GHz band centered on the chosen frequency
+    band = np.abs(freqs_mhz - float(freq_mhz)) <= 500
+    freqs_mhz = freqs_mhz[band]
+
+    gain_err, phase_err = get_sweep_errors()
+    gain_err = gain_err[:, band]
+    phase_err = phase_err[:, band]
+
+    # Per-frequency statistics across all sweep steps
+    gain_peak = np.max(np.abs(gain_err), axis=0)
+    gain_std = np.std(gain_err, axis=0)
+    phase_peak = np.max(np.abs(phase_err), axis=0)
+    phase_std = np.std(phase_err, axis=0)
+
+    fig = Figure(figsize=(8, 5), dpi=100)
+    ax_g = fig.add_subplot(211)
+    ax_p = fig.add_subplot(212, sharex=ax_g)
+
+    ax_g.plot(freqs_mhz, gain_peak, marker='.', label='Peak')
+    ax_g.plot(freqs_mhz, gain_std, marker='.', label='Std Dev')
+    ax_g.set_ylabel('Gain Error (dB)')
+    ax_g.grid(True)
+    ax_g.legend()
+    ax_g.set_title(f"{sweep_title()} Error, 1 GHz band @ {float(freq_mhz):g} MHz")
+
+    ax_p.plot(freqs_mhz, phase_peak, marker='.', label='Peak')
+    ax_p.plot(freqs_mhz, phase_std, marker='.', label='Std Dev')
+    ax_p.set_ylabel('Phase Error (deg)')
+    ax_p.set_xlabel('Frequency (MHz)')
+    ax_p.grid(True)
+    ax_p.legend()
+
+    fig.tight_layout()
+    show_sweep_figure(fig)
+
+
 def analyze_sweep(freq_mhz):
     print(f'Analyze Sweep: Frequency = {freq_mhz} MHz')
+
+    if not sweep_plot_ready():
+        return
+
+    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
+    gain_err, phase_err = get_sweep_errors()
+
+    lines = []
+    for f in (float(freq_mhz) - 500, float(freq_mhz), float(freq_mhz) + 500):
+        if f < freqs_mhz[0] or f > freqs_mhz[-1]:
+            continue
+        fi = int(np.argmin(np.abs(freqs_mhz - f)))
+        g_peak = np.max(np.abs(gain_err[:, fi]))
+        g_std = np.std(gain_err[:, fi])
+        p_peak = np.max(np.abs(phase_err[:, fi]))
+        p_std = np.std(phase_err[:, fi])
+        line = (f'{freqs_mhz[fi]:g} MHz: Gain Err peak = {g_peak:.2f} dB, std = {g_std:.2f} dB | '
+                f'Phase Err peak = {p_peak:.2f} deg, std = {p_std:.2f} deg')
+        print(line)
+        lines.append(line)
+
+    label__sweep_stats.config(text='\n'.join(lines))
 
 
 def display__tab_sweep():
@@ -896,11 +1076,17 @@ def display__tab_sweep():
     entry__sweep_gain.grid(column=3, row=1, padx=5, pady=5, sticky="nsew")
     entry__sweep_gain.insert(0, "0")
 
-    ttk.Button(tab_sweep, text="Run",
-               command=lambda: run_sweep(combobox__sweep_mode.get(), combobox__sweep_trx_mode.get(),
-                                         combobox__sweep_ch.get(), entry__sweep_phase.get(),
-                                         entry__sweep_gain.get())).grid(column=5, row=1, padx=5, pady=5,
-                                                                        sticky="nsew")
+    global progressbar__sweep
+    progressbar__sweep = ttk.Progressbar(tab_sweep, orient='horizontal', mode='determinate', maximum=100)
+    progressbar__sweep.grid(column=4, row=1, padx=5, pady=5, sticky="nsew")
+
+    global button__sweep_run
+    button__sweep_run = ttk.Button(tab_sweep, text="Run",
+                                   command=lambda: start_sweep(combobox__sweep_mode.get(),
+                                                               combobox__sweep_trx_mode.get(),
+                                                               combobox__sweep_ch.get(), entry__sweep_phase.get(),
+                                                               entry__sweep_gain.get()))
+    button__sweep_run.grid(column=5, row=1, padx=5, pady=5, sticky="nsew")
 
     ttk.Separator(tab_sweep, orient='horizontal').grid(column=0, row=2, columnspan=6, sticky='ew', pady=5)
 
@@ -913,8 +1099,14 @@ def display__tab_sweep():
     ttk.Button(tab_sweep, text="Plot",
                command=lambda: plot_sweep(combobox__sweep_freq.get())).grid(column=2, row=3, padx=5, pady=5,
                                                                             sticky="nsew")
+    ttk.Button(tab_sweep, text="Plot Errors",
+               command=lambda: plot_sweep_errors(combobox__sweep_freq.get())).grid(column=3, row=3, padx=5, pady=5,
+                                                                                   sticky="nsew")
+    ttk.Button(tab_sweep, text="Plot RMS Errors",
+               command=lambda: plot_sweep_rms_errors(combobox__sweep_freq.get())).grid(column=4, row=3, padx=5,
+                                                                                       pady=5, sticky="nsew")
     ttk.Button(tab_sweep, text="Analyze",
-               command=lambda: analyze_sweep(combobox__sweep_freq.get())).grid(column=3, row=3, padx=5, pady=5,
+               command=lambda: analyze_sweep(combobox__sweep_freq.get())).grid(column=5, row=3, padx=5, pady=5,
                                                                                sticky="nsew")
 
     # Stats readout above the plot container
