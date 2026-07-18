@@ -638,6 +638,88 @@ def display__tab_registers():
             read_button.grid(column=4, row=row_index + 1, padx=5, pady=5, sticky="nsew")
 
 
+# LUT file selection widgets, populated by display__tab_rf. Not wired into
+# init_rf yet — GUI elements only for now.
+lut_select = {}
+
+# Pre-curated LUT sets: group name -> the six LUT files (keys tx_gain,
+# tx_phase, rx_f1_gain, rx_f1_phase, rx_f2_gain, rx_f2_phase)
+lut_groups = {
+    # 'Example 9.5 GHz Low Bias': {
+    #     'tx_gain': 'TX_Gain_LUT_10p5GHz.xlsx',
+    #     'tx_phase': 'TX_Phase_LUT_10p5GHz.xlsx',
+    #     'rx_f1_gain': 'RX_Gain_LUT_9GHz_LowBias.xlsx',
+    #     'rx_f1_phase': 'RX_Phase_LUT_9GHz_LowBias.xlsx',
+    #     'rx_f2_gain': 'RX_Gain_LUT_11GHz_LowBias.xlsx',
+    #     'rx_f2_phase': 'RX_Phase_LUT_11GHz_LowBias.xlsx',
+    # },
+}
+
+
+def select_lut_group(name):
+    print(f'LUT Set: {name}')
+    group = lut_groups.get(name)
+    if group is None:
+        return
+    for key, fname in group.items():
+        lut_select[key].set(fname)
+
+
+def update_lut_select_state():
+    default = lut_select['use_default'].get()
+    use_set = lut_select['use_lut_set'].get()
+    same = lut_select['same_rx_lut'].get()
+
+    # Priority: default LUTs > LUT set > individual files
+    lut_select['use_lut_set_chk'].config(state='disabled' if default else 'normal')
+    lut_select['group'].config(state='readonly' if (use_set and not default) else 'disabled')
+    individual = 'disabled' if (default or use_set) else 'readonly'
+    lut_select['same_rx_lut_chk'].config(state='disabled' if (default or use_set) else 'normal')
+    for key in ('tx_gain', 'tx_phase', 'rx_f1_gain', 'rx_f1_phase'):
+        lut_select[key].config(state=individual)
+    rx_f2_state = 'disabled' if (default or use_set or same) else 'readonly'
+    lut_select['rx_f2_gain'].config(state=rx_f2_state)
+    lut_select['rx_f2_phase'].config(state=rx_f2_state)
+
+
+# Chip version selection: display name -> internal version tag
+chip_versions = {'FD3R4411A': 'v1', 'FD3R4411B': 'v2', 'FD3RB0444': 'leo_v1'}
+combobox__chip_version = None
+
+
+def get_chip_version():
+    return chip_versions[combobox__chip_version.get()]
+
+
+def lut_file_matches_version(fname, version):
+    f = fname.lower()
+    if version == 'leo_v1':
+        return 'leo_v1' in f
+    # 'v1' must not match the 'v1' inside 'leo_v1'
+    return version in f and 'leo' not in f
+
+
+def update_lut_file_lists():
+    version = get_chip_version()
+
+    lut_files = []
+    if os.path.isdir('../final_lut'):
+        lut_files = sorted((f for f in os.listdir('../final_lut') if f.lower().endswith('.xlsx')), key=str.lower)
+    else:
+        print('final_lut folder not found, LUT selection lists are empty')
+
+    # Offer only the files matching each cell (TX/RX, gain/phase) and the
+    # selected chip version
+    for key in ('tx_gain', 'tx_phase', 'rx_f1_gain', 'rx_f1_phase', 'rx_f2_gain', 'rx_f2_phase'):
+        trx, kind = key.split('_')[0], key.split('_')[-1]
+        values = [f for f in lut_files
+                  if trx in f.lower() and kind in f.lower() and lut_file_matches_version(f, version)]
+        cb = lut_select[key]
+        cb.config(values=values)
+        if cb.get() not in values:
+            cb.set('')
+
+
 def display__tab_rf():
     rf_en = []
     rf_chk = []
@@ -650,26 +732,33 @@ def display__tab_rf():
     ch_entry_lists = [rf_gain_entries, rf_phase_entries, pa_on_bias_entries, pa_off_bias_entries,
                       lna_on_bias_entries, lna_off_bias_entries]
 
-    ttk.Label(tab_rf, text='Bias Mode').grid(column=0, row=0, padx=5, pady=5, sticky="nsew")
+    ttk.Label(tab_rf, text='Version').grid(column=0, row=0, padx=5, pady=5, sticky="nsew")
+    global combobox__chip_version
+    combobox__chip_version = ttk.Combobox(tab_rf, values=list(chip_versions), state="readonly")
+    combobox__chip_version.grid(column=1, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__chip_version.current(list(chip_versions).index('FD3R4411B'))
+    combobox__chip_version.bind("<<ComboboxSelected>>", lambda event: update_lut_file_lists())
+
+    ttk.Label(tab_rf, text='Bias Mode').grid(column=2, row=0, padx=5, pady=5, sticky="nsew")
     combobox__bias_mode = ttk.Combobox(tab_rf, values=['Normal', 'Low Power'], state="readonly")
-    combobox__bias_mode.grid(column=1, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__bias_mode.grid(column=3, row=0, padx=5, pady=5, sticky="nsew")
     combobox__bias_mode.current(0)
 
-    ttk.Label(tab_rf, text='TR Control Mode').grid(column=2, row=0, padx=5, pady=5, sticky="nsew")
+    ttk.Label(tab_rf, text='TR Control Mode').grid(column=4, row=0, padx=5, pady=5, sticky="nsew")
     combobox__tr_mode = ttk.Combobox(tab_rf, values=['Register', 'TR Pin'], state="readonly")
-    combobox__tr_mode.grid(column=3, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__tr_mode.grid(column=5, row=0, padx=5, pady=5, sticky="nsew")
     combobox__tr_mode.current(0)
     combobox__tr_mode.bind("<<ComboboxSelected>>", lambda event: change_tr_mode(combobox__tr_mode.get()))
-    ttk.Label(tab_rf, text='TRX Mode').grid(column=4, row=0, padx=5, pady=5, sticky="nsew")
+    ttk.Label(tab_rf, text='TRX Mode').grid(column=6, row=0, padx=5, pady=5, sticky="nsew")
     combobox__trx_mode = ttk.Combobox(tab_rf, values=['TX', 'RX'], state="readonly")
-    combobox__trx_mode.grid(column=5, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__trx_mode.grid(column=7, row=0, padx=5, pady=5, sticky="nsew")
     combobox__trx_mode.current(1)
     combobox__trx_mode.bind("<<ComboboxSelected>>",
                             lambda event: change_trx_mode(combobox__trx_mode.get(), rf_en, ch_entry_lists))
 
-    ttk.Label(tab_rf, text='STG2 Load Config').grid(column=6, row=0, padx=5, pady=5, sticky="nsew")
+    ttk.Label(tab_rf, text='STG2 Load Config').grid(column=8, row=0, padx=5, pady=5, sticky="nsew")
     combobox__stg2_load_cfg = ttk.Combobox(tab_rf, values=['Register', 'Load Pin'], state="readonly")
-    combobox__stg2_load_cfg.grid(column=7, row=0, padx=5, pady=5, sticky="nsew")
+    combobox__stg2_load_cfg.grid(column=9, row=0, padx=5, pady=5, sticky="nsew")
     combobox__stg2_load_cfg.current(0)
     combobox__stg2_load_cfg.bind("<<ComboboxSelected>>",
                                   lambda event: change_stg2_load_cfg(combobox__stg2_load_cfg.get()))
@@ -679,7 +768,46 @@ def display__tab_rf():
                                        combobox__stg2_load_cfg.get(), rf_en)).grid(column=0, row=1, padx=5, pady=5,
                                                                                    sticky="nsew")
 
-    ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=2, columnspan=8, sticky='ew', pady=5)
+    frame__lut = ttk.LabelFrame(tab_rf, text='LUT Selection')
+    frame__lut.grid(column=1, row=1, columnspan=9, padx=5, pady=5, sticky="nsew")
+
+    lut_select['use_default'] = tk.IntVar(value=1)
+    ttk.Checkbutton(frame__lut, text="Use Default LUTs", variable=lut_select['use_default'],
+                    command=update_lut_select_state).grid(column=0, row=0, columnspan=2, padx=5, pady=2, sticky="w")
+
+    ttk.Label(frame__lut, text='LUT Set').grid(column=0, row=1, padx=5, pady=2, sticky="w")
+    lut_select['group'] = ttk.Combobox(frame__lut, values=list(lut_groups), state="readonly", width=45)
+    lut_select['group'].grid(column=1, row=1, padx=5, pady=2, sticky="nsew")
+    lut_select['group'].bind("<<ComboboxSelected>>", lambda event: select_lut_group(lut_select['group'].get()))
+
+    lut_select['use_lut_set'] = tk.IntVar(value=0)
+    lut_select['use_lut_set_chk'] = ttk.Checkbutton(frame__lut, text="Use LUT Set",
+                                                    variable=lut_select['use_lut_set'],
+                                                    command=update_lut_select_state)
+    lut_select['use_lut_set_chk'].grid(column=2, row=1, padx=5, pady=2, sticky="w")
+
+    ttk.Label(frame__lut, text='Gain LUT').grid(column=1, row=2, padx=5, pady=2, sticky="w")
+    ttk.Label(frame__lut, text='Phase LUT').grid(column=2, row=2, padx=5, pady=2, sticky="w")
+
+    for r, (key, text) in enumerate([('tx', 'TX'), ('rx_f1', 'RX F1'), ('rx_f2', 'RX F2')], start=3):
+        ttk.Label(frame__lut, text=text).grid(column=0, row=r, padx=5, pady=2, sticky="w")
+        for c, kind in enumerate(['gain', 'phase'], start=1):
+            cb = ttk.Combobox(frame__lut, values=[], state="readonly", width=45)
+            cb.grid(column=c, row=r, padx=5, pady=2, sticky="nsew")
+            lut_select[f'{key}_{kind}'] = cb
+
+    lut_select['same_rx_lut'] = tk.IntVar(value=1)
+    lut_select['same_rx_lut_chk'] = ttk.Checkbutton(frame__lut, text="Use same LUT for RX F1 and F2",
+                                                    variable=lut_select['same_rx_lut'],
+                                                    command=update_lut_select_state)
+    lut_select['same_rx_lut_chk'].grid(column=1, row=6, padx=5, pady=2, sticky="w")
+
+    frame__lut.grid_columnconfigure(1, weight=1)
+    frame__lut.grid_columnconfigure(2, weight=1)
+    update_lut_file_lists()
+    update_lut_select_state()
+
+    ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=2, columnspan=10, sticky='ew', pady=5)
 
     for i in range(4):
         rf_en.append(tk.IntVar(value=0))
@@ -697,7 +825,7 @@ def display__tab_rf():
         rf_phase_entries[i].insert(0, "0")
         ttk.Label(tab_rf, text=f"CH{i} Phase").grid(column=2 * i, row=5, padx=5, pady=5, sticky="w")
 
-        ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=7, columnspan=8, sticky='ew', pady=5)
+        ttk.Separator(tab_rf, orient='horizontal').grid(column=0, row=7, columnspan=10, sticky='ew', pady=5)
 
         ttk.Label(tab_rf, text=f"CH{i} PA ON Bias").grid(column=2 * i, row=8, padx=5, pady=5, sticky="w")
         pa_on_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
@@ -1205,7 +1333,7 @@ if sys.platform == 'win32':
 
 root = tk.Tk()
 root.title("FD3R4411 Control Software @ FermionIC Design Pvt Ltd")
-root.geometry('1092x800')
+root.geometry('1376x1008')
 
 window_icon = tk.PhotoImage(file=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Favicon Logo.png'))
 root.iconphoto(True, window_icon)
