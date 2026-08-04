@@ -144,24 +144,9 @@ def connect_vna(resource):
         print('VNA connection failed')
         return
 
-    instruments.vna.init()
-    instruments.vna.cfg(1, 'S21_GAIN')
-    instruments.vna.cfg(2, 'S21_PHASE')
-    instruments.vna.cfg_freq(start=vna_freq_start, stop=vna_freq_stop, step=vna_freq_step)
-    instruments.vna.cfg_pwr(pwr=-20)
-
-    instruments.vna.add_marker(win_id=1, marker_id=1, val=8e9)
-    instruments.vna.add_marker(win_id=1, marker_id=2, val=10e9)
-    instruments.vna.add_marker(win_id=1, marker_id=3, val=12e9)
-
-    instruments.vna.add_marker(win_id=2, marker_id=1, val=8e9)
-    instruments.vna.add_marker(win_id=2, marker_id=2, val=10e9)
-    instruments.vna.add_marker(win_id=2, marker_id=3, val=12e9)
-
-    instruments.vna.set_y_axis(win_id=1, ref_level=-20, scale_per_div=5)
-    instruments.vna.set_y_axis(win_id=2, ref_level=0, scale_per_div=45)
-
-    instruments.vna.norm(win_id=2)
+    # Full setup — window reset, measurements, freq range, power, markers,
+    # normalization — depends on the TRX mode selected in the RF control tab
+    cfg_vna_trx_mode(combobox__trx_mode.get())
 
     status['VNA'] = 'Connected'
     update_status_bar()
@@ -281,6 +266,7 @@ def update_ch_en(trx_mode, rf_en, entry_lists):
 
 def change_trx_mode(trx_mode, rf_en, entry_lists):
     print(f'TRX Mode: {trx_mode}')
+    cfg_vna_trx_mode(trx_mode)
     if trx_mode=='RX':
         if orion_hal is not None:
             orion_hal.set_trx_mode(0)
@@ -292,6 +278,11 @@ def change_trx_mode(trx_mode, rf_en, entry_lists):
     for i in range(4):
         rf_en[i].set((mask >> i) & 1)
     update_ch_entry_state(rf_en, entry_lists)
+
+
+# Set by display__tab_rf: applies a TRX mode change everywhere — both the RF
+# and sweep tab dropdowns, the VNA and the chip
+apply_trx_mode = None
 
 
 def change_stg2_load_cfg(stg2_load_cfg):
@@ -750,11 +741,21 @@ def display__tab_rf():
     combobox__tr_mode.current(0)
     combobox__tr_mode.bind("<<ComboboxSelected>>", lambda event: change_tr_mode(combobox__tr_mode.get()))
     ttk.Label(tab_rf, text='TRX Mode').grid(column=6, row=0, padx=5, pady=5, sticky="nsew")
+    global combobox__trx_mode
     combobox__trx_mode = ttk.Combobox(tab_rf, values=['TX', 'RX'], state="readonly")
     combobox__trx_mode.grid(column=7, row=0, padx=5, pady=5, sticky="nsew")
     combobox__trx_mode.current(1)
+
+    global apply_trx_mode
+
+    def apply_trx_mode_impl(trx_mode):
+        combobox__trx_mode.set(trx_mode)
+        combobox__sweep_trx_mode.set(trx_mode)
+        change_trx_mode(trx_mode, rf_en, ch_entry_lists)
+
+    apply_trx_mode = apply_trx_mode_impl
     combobox__trx_mode.bind("<<ComboboxSelected>>",
-                            lambda event: change_trx_mode(combobox__trx_mode.get(), rf_en, ch_entry_lists))
+                            lambda event: apply_trx_mode(combobox__trx_mode.get()))
 
     ttk.Label(tab_rf, text='STG2 Load Config').grid(column=8, row=0, padx=5, pady=5, sticky="nsew")
     combobox__stg2_load_cfg = ttk.Combobox(tab_rf, values=['Register', 'Load Pin'], state="readonly")
@@ -871,6 +872,47 @@ def change_sweep_mode(mode, trx_mode, channel, entry__sweep_phase, entry__sweep_
         entry__sweep_gain.config(state='disabled')
 
 
+def cfg_vna_trx_mode(trx_mode):
+    # TX measures S12 driven hard, RX measures S21 in the linear range
+    # (mirrors tests/tx_char.py and tests/rx_char.py)
+    if instruments is None or instruments.vna is None:
+        print('VNA not connected, skipping VNA reconfiguration')
+        return
+
+    print(f'Configure VNA for {trx_mode}')
+    # Measurements can't be redefined in place — reset the windows and
+    # rebuild the full setup from scratch
+    instruments.vna.init()
+
+    if trx_mode == 'TX':
+        instruments.vna.cfg(1, 'S12_GAIN')
+        instruments.vna.cfg(2, 'S12_PHASE')
+    else:
+        instruments.vna.cfg(1, 'S21_GAIN')
+        instruments.vna.cfg(2, 'S21_PHASE')
+
+    # Freq range must be set after the measurements are defined
+    instruments.vna.cfg_freq(start=vna_freq_start, stop=vna_freq_stop, step=vna_freq_step)
+
+    if trx_mode == 'TX':
+        instruments.vna.cfg_pwr(pwr=10)
+        instruments.vna.set_y_axis(win_id=1, ref_level=0, scale_per_div=5)
+    else:
+        instruments.vna.cfg_pwr(pwr=-20)
+        instruments.vna.set_y_axis(win_id=1, ref_level=-20, scale_per_div=5)
+
+    instruments.vna.add_marker(win_id=1, marker_id=1, val=8e9)
+    instruments.vna.add_marker(win_id=1, marker_id=2, val=10e9)
+    instruments.vna.add_marker(win_id=1, marker_id=3, val=12e9)
+
+    instruments.vna.add_marker(win_id=2, marker_id=1, val=8e9)
+    instruments.vna.add_marker(win_id=2, marker_id=2, val=10e9)
+    instruments.vna.add_marker(win_id=2, marker_id=3, val=12e9)
+
+    instruments.vna.set_y_axis(win_id=2, ref_level=0, scale_per_div=45)
+    instruments.vna.norm(win_id=2)
+
+
 def read_vna_s21():
     s21m = np.array(instruments.vna.query(':CALC:MEAS1:DATA:FDATA?').strip().split(","), dtype=float)
     s21p = np.array(instruments.vna.query(':CALC:MEAS2:DATA:FDATA?').strip().split(","), dtype=float)
@@ -898,7 +940,7 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
         print('VNA not connected, sweeping without capture')
 
     if capture:
-        instruments.vna.cfg_pwr(pwr=-20)
+        instruments.vna.cfg_pwr(pwr=10 if trx_mode == 'TX' else -20)
         instruments.vna.write(":OUTP ON")
 
     if trx_mode == 'TX':
@@ -1185,9 +1227,12 @@ def display__tab_sweep():
                                                               entry__sweep_gain))
 
     ttk.Label(tab_sweep, text='TRX Mode').grid(column=2, row=0, padx=5, pady=5, sticky="w")
+    global combobox__sweep_trx_mode
     combobox__sweep_trx_mode = ttk.Combobox(tab_sweep, values=['TX', 'RX'], state="readonly")
     combobox__sweep_trx_mode.grid(column=3, row=0, padx=5, pady=5, sticky="nsew")
-    combobox__sweep_trx_mode.current(0)
+    combobox__sweep_trx_mode.current(1)
+    combobox__sweep_trx_mode.bind("<<ComboboxSelected>>",
+                                  lambda event: apply_trx_mode(combobox__sweep_trx_mode.get()))
 
     ttk.Label(tab_sweep, text='Channel').grid(column=4, row=0, padx=5, pady=5, sticky="w")
     combobox__sweep_ch = ttk.Combobox(tab_sweep, values=['0', '1', '2', '3'], state="readonly")
