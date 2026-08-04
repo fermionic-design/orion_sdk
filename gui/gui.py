@@ -172,8 +172,9 @@ def init_rf(bias_mode, tr_mode, trx_mode, stg2_load_cfg, rf_en):
     version = 'v2'  # TODO: put this in a proper place
     #TODO: the paths should not be relative paths
     if version == 'v2':
-        orion_hal.init_lut_new(r'../final_lut/TX_Gain_LUT_10p5GHz.xlsx',
-                               r'../final_lut/tx_v2__phase_lut_freq_14p25_gm_0p5_pm_1p5_pm2_4_abs_gain_8__maxbias__vdd_2p7.xlsx',
+        # TX LUTs match tests/tx_phase_sweep_nombias_v2.py
+        orion_hal.init_lut_new(r'../final_lut/v2__tx__gain_lut__8p5GHz__maxbias__vdd_2p7_at_i500_q4.xlsx',
+                               r'../final_lut/v2__tx_phase_lut__freq_8p5__gm_0p5__pm_1p5__pm2_3__abs_gain_7p5__nom__vdd_2p7.xlsx',
                                r'../final_lut/v2__rx2__gain_lut__9p5GHz__nombias__vdd_2p7_with_avg.xlsx',
                                r'../final_lut/v2_rx0_phase_lut_freq_9p5_gm_1_pm_1p5_pm2_5p95_abs_gain_9p0__nom__vdd_2p7.xlsx',
                                r'../final_lut/v2__rx2__gain_lut__9p5GHz__lowbias_00__vdd_2p7_with_avg_for_dual_lut.xlsx',
@@ -189,20 +190,16 @@ def init_rf(bias_mode, tr_mode, trx_mode, stg2_load_cfg, rf_en):
     print(f'LUT Initialized')
 
     print(f'TR Mode: {tr_mode}, TRX Mode: {trx_mode}')
-    if (bias_mode == 'Normal'):
-        if trx_mode == 'TX':
-            print(f'Init TX: {bias_mode}')
-            orion_hal.init_tx('NOM')
-        else:
-            print(f'Init RX: {bias_mode}')
-            orion_hal.init_rx('NOM')
+    bias = {'Normal': 'NOM', 'Low Power': 'LOW', 'Max': 'MAX'}[bias_mode]
+    if trx_mode == 'TX':
+        print(f'Init TX: {bias_mode}')
+        orion_hal.init_tx(bias)
     else:
-        if trx_mode == 'TX':
-            print(f'Init TX: {bias_mode}')
-            orion_hal.init_tx('LOW')
-        else:
-            print(f'Init RX: {bias_mode}')
-            orion_hal.init_rx('LOW')
+        if bias == 'MAX':
+            print('RX has no MAX bias mode, using NOM instead')
+            bias = 'NOM'
+        print(f'Init RX: {bias_mode}')
+        orion_hal.init_rx(bias)
 
     ch_en = 0
     for i in range(4):
@@ -310,8 +307,9 @@ def load_rf(rf_en, rf_gain_entries, rf_phase_entries, pa_on_bias_entries, pa_off
         print(f'Phase = {rf_phase_entries[i].get()}, Gain = {rf_gain_entries[i].get()}, ant_sel = {ant_sel}')
         # print(type(round(int(rf_phase_entries[i].get()/2.8))))
         if orion_hal.trx_mode:
-            orion_hal.set_lut_idx(round(int(rf_phase_entries[i].get()) / 2.8125),
-                                  round(int(rf_gain_entries[i].get()) / 0.5), ant_sel)
+            # TX uses the same phase grid as RX: 2.975 deg/idx from idx 4
+            orion_hal.set_lut_idx(round(float(rf_phase_entries[i].get()) / 2.975) + 4,
+                                  round(float(rf_gain_entries[i].get()) / 0.5), ant_sel)
         else:
             orion_hal.set_freq('9G')
             # orion_hal.enable_rx_correction(1)
@@ -731,9 +729,9 @@ def display__tab_rf():
     combobox__chip_version.bind("<<ComboboxSelected>>", lambda event: update_lut_file_lists())
 
     ttk.Label(tab_rf, text='Bias Mode').grid(column=2, row=0, padx=5, pady=5, sticky="nsew")
-    combobox__bias_mode = ttk.Combobox(tab_rf, values=['Normal', 'Low Power'], state="readonly")
+    combobox__bias_mode = ttk.Combobox(tab_rf, values=['Normal', 'Low Power', 'Max'], state="readonly")
     combobox__bias_mode.grid(column=3, row=0, padx=5, pady=5, sticky="nsew")
-    combobox__bias_mode.current(0)
+    combobox__bias_mode.current(0)  # TRX mode defaults to RX -> Normal bias
 
     ttk.Label(tab_rf, text='TR Control Mode').grid(column=4, row=0, padx=5, pady=5, sticky="nsew")
     combobox__tr_mode = ttk.Combobox(tab_rf, values=['Register', 'TR Pin'], state="readonly")
@@ -751,6 +749,8 @@ def display__tab_rf():
     def apply_trx_mode_impl(trx_mode):
         combobox__trx_mode.set(trx_mode)
         combobox__sweep_trx_mode.set(trx_mode)
+        # Default bias per mode: MAX for TX, Normal for RX
+        combobox__bias_mode.set('Max' if trx_mode == 'TX' else 'Normal')
         change_trx_mode(trx_mode, rf_en, ch_entry_lists)
 
     apply_trx_mode = apply_trx_mode_impl
@@ -895,7 +895,7 @@ def cfg_vna_trx_mode(trx_mode):
     instruments.vna.cfg_freq(start=vna_freq_start, stop=vna_freq_stop, step=vna_freq_step)
 
     if trx_mode == 'TX':
-        instruments.vna.cfg_pwr(pwr=10)
+        instruments.vna.cfg_pwr(pwr=8)
         instruments.vna.set_y_axis(win_id=1, ref_level=0, scale_per_div=5)
     else:
         instruments.vna.cfg_pwr(pwr=-20)
@@ -910,10 +910,20 @@ def cfg_vna_trx_mode(trx_mode):
     instruments.vna.add_marker(win_id=2, marker_id=3, val=12e9)
 
     instruments.vna.set_y_axis(win_id=2, ref_level=0, scale_per_div=45)
+
+    # Averaging, as in tests/tx_phase_sweep_nombias_v2.py
+    instruments.vna.write(":SENS:AVER:STAT ON")
+    instruments.vna.write(":SENS:AVER:COUN 128")
+
     instruments.vna.norm(win_id=2)
 
 
 def read_vna_s21():
+    # Restart the averaging for this point and sync before reading, as in
+    # tests/tx_phase_sweep_nombias_v2.py
+    instruments.vna.write(":SENS:AVER:CLE")
+    time.sleep(0.1)
+    instruments.vna.query("*OPC?")
     s21m = np.array(instruments.vna.query(':CALC:MEAS1:DATA:FDATA?').strip().split(","), dtype=float)
     s21p = np.array(instruments.vna.query(':CALC:MEAS2:DATA:FDATA?').strip().split(","), dtype=float)
     return s21m, s21p
@@ -940,7 +950,7 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
         print('VNA not connected, sweeping without capture')
 
     if capture:
-        instruments.vna.cfg_pwr(pwr=10 if trx_mode == 'TX' else -20)
+        instruments.vna.cfg_pwr(pwr=8 if trx_mode == 'TX' else -20)
         instruments.vna.write(":OUTP ON")
 
     if trx_mode == 'TX':
@@ -962,6 +972,8 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
 
     if mode=='Phase':
         g_idx = round(int(gain)/0.5)
+        # Both TX and RX phase sweeps cover LUT idx 4..124, as in the char
+        # scripts; errors are referenced to the first swept index
         p_idxs = range(4,125)
         for i, p_idx in enumerate(p_idxs):
             print(f'p_idx = {p_idx}')
@@ -974,10 +986,8 @@ def run_sweep(mode, trx_mode, channel, phase, gain):
                 store_sweep_point(p_idx, s21m, s21p)
             update_sweep_progress((i + 1) / len(p_idxs) * 100)
     else:
-        if trx_mode=='TX':
-            p_idx = round(int(phase)/2.8125)
-        else:
-            p_idx = round(int(phase)/2.975) + 4
+        # TX and RX phase LUTs share the same grid: 2.975 deg/idx from idx 4
+        p_idx = round(float(phase)/2.975) + 4
         g_idxs = range(0,64)
         for i, g_idx in enumerate(g_idxs):
             print(f'g_idx = {g_idx}')
@@ -1044,8 +1054,8 @@ def get_sweep_errors():
     idx = np.array(sweep_data['idx'])
 
     if sweep_data['mode'] == 'Phase':
-        phase_lsb = 2.8125 if sweep_data['trx_mode'] == 'TX' else 2.975
-        phase_ideal = (idx - idx[0]) * phase_lsb
+        # TX and RX phase LUTs share the same grid: 2.975 deg/idx from idx 4
+        phase_ideal = (idx - idx[0]) * 2.975
         gain_ideal = np.zeros_like(idx, dtype=float)
     else:
         phase_ideal = np.zeros_like(idx, dtype=float)
