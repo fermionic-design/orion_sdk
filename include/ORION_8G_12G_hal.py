@@ -678,6 +678,7 @@ class ORION_8G_12G_hal:
         self.orion_csr.RSVD3.write()    
 
     def set_lut_idx(self, p_idx, g_idx, ant_sel, mode=None):
+        print(f'p_idx={p_idx}, g_idx={g_idx}, ant_sel={ant_sel}, trx_mode={self.trx_mode}')
         
         #------Set LUT IDX for RX---------------------------------------#   
        
@@ -689,14 +690,15 @@ class ORION_8G_12G_hal:
 
             # Set RX phase and gain codes using loop
             for i in range(4):
-                # if(ant_sel & (1<<i)): # Currently setting for all antennas due to correction time issue
-                phase_reg = getattr(self.orion_csr, f'PHASE_CODE_RX{i}')
-                gain_reg  = getattr(self.orion_csr, f'GAIN_CODE_RX{i}')
+                if(ant_sel & (1<<i)): # Currently setting for all antennas due to correction time issue
+                    print(f'Setting p_idx/g_idx for RX Ch[{i}]')
+                    phase_reg = getattr(self.orion_csr, f'PHASE_CODE_RX{i}')
+                    gain_reg  = getattr(self.orion_csr, f'GAIN_CODE_RX{i}')
 
-                setattr(phase_reg, f'phase_code_rx{i}', p_idx)
-                phase_reg.write()
-                setattr(gain_reg, f'gain_code_rx{i}', g_idx)
-                gain_reg.write()
+                    setattr(phase_reg, f'phase_code_rx{i}', p_idx)
+                    phase_reg.write()
+                    setattr(gain_reg, f'gain_code_rx{i}', g_idx)
+                    gain_reg.write()
             
             # Read back phase/gain values from RX0–RX3
             for i in range(4):

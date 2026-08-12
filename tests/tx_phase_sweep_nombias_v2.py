@@ -12,9 +12,10 @@ d1 = 0.1   # delay after setting IQ
 d2 = 0.2   # delay after normalization
 
 import sys
-sys.path.append('../../include')
+import os
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'include'))
 
-from libs.fd_cmn.instruments.instruments import instruments
+from instruments import instruments
 from ORION_8G_12G import *
 from ORION_8G_12G_lut import *
 from ORION_8G_12G_hal import *
@@ -37,8 +38,8 @@ start_time = time.time()
 # VNA Setup
 instruments = instruments(required_instruments=['vna'])
 instruments.vna.init()
-instruments.vna.cfg(1, 'S21_GAIN')
-instruments.vna.cfg(2, 'S21_PHASE')
+instruments.vna.cfg(1, 'S12_GAIN')
+instruments.vna.cfg(2, 'S12_PHASE')
 instruments.vna.cfg_freq(start=7e9, stop=13e9, step=250e6)
 # instruments.vna.cfg_pwr(pwr=1.727)
 instruments.vna.cfg_pwr(pwr=8)
