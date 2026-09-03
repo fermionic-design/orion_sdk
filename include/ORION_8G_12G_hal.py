@@ -561,7 +561,35 @@ class ORION_8G_12G_hal:
             self.orion_lut.TX_GAIN_MEM.tx_gain_val = tx_gain_val[i]
             self.orion_lut.TX_GAIN_MEM.tx_final_gain_val = tx_final_gain_val[i]
             self.orion_lut.TX_GAIN_MEM.write()
-            
+
+    # TODO(abhra):  This is a temp function right now - change this for proper customer use case
+    #               use the same LUTs as init_lut() and also take a beam angle..then use that info to pick the
+    #               right elements from the LUTs
+    def init_beam_lut(self):
+        BEAM_LUT_DEPTH = 128
+        NUM_CH = 4
+        for pos in range(BEAM_LUT_DEPTH):
+            for ant in range(NUM_CH):
+                self.orion_lut.BEAM_LUT.pos = pos
+                self.orion_lut.BEAM_LUT.ant_sel = ant
+
+                if pos%2==0:
+                    self.orion_lut.BEAM_LUT.rx_phase_val_i = 255
+                    self.orion_lut.BEAM_LUT.rx_phase_val_q = 0
+                    self.orion_lut.BEAM_LUT.rx_gain_val = 1023
+                    self.orion_lut.BEAM_LUT.tx_phase_val_i = 255
+                    self.orion_lut.BEAM_LUT.tx_phase_val_q = 0
+                    self.orion_lut.BEAM_LUT.tx_gain_val = 1023
+                else:
+                    self.orion_lut.BEAM_LUT.rx_phase_val_i = 0
+                    self.orion_lut.BEAM_LUT.rx_phase_val_q = 255
+                    self.orion_lut.BEAM_LUT.rx_gain_val = 0
+                    self.orion_lut.BEAM_LUT.tx_phase_val_i = 0
+                    self.orion_lut.BEAM_LUT.tx_phase_val_q = 255
+                    self.orion_lut.BEAM_LUT.tx_gain_val = 0
+
+                self.orion_lut.BEAM_LUT.write()
+
     def init_tx(self, TX_BIAS_MODE, final_av=31, ant_sel=0xF):
         if self.version == 'v2':
             self.orion_csr.REG4_EXT_BIAS.rsvd7 = 0x02
