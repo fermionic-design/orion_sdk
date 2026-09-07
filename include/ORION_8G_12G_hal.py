@@ -570,25 +570,28 @@ class ORION_8G_12G_hal:
         NUM_CH = 4
         for pos in range(BEAM_LUT_DEPTH):
             for ant in range(NUM_CH):
-                self.orion_lut.BEAM_LUT.pos = pos
-                self.orion_lut.BEAM_LUT.ant_sel = ant
+                self.orion_csr.PAGE_ID.page_id = 32+int(pos/4)    # beam lut starts at 8KB and each position is 64B, each page is 256B
+                self.orion_csr.PAGE_ID.write()
+                # print(f'init_beam_lut(): pos={pos}, ant={ant}')
+                self.orion_lut.BEAM_MEM.pos = pos%4
+                self.orion_lut.BEAM_MEM.ant_sel = ant
 
                 if pos%2==0:
-                    self.orion_lut.BEAM_LUT.rx_phase_val_i = 255
-                    self.orion_lut.BEAM_LUT.rx_phase_val_q = 0
-                    self.orion_lut.BEAM_LUT.rx_gain_val = 1023
-                    self.orion_lut.BEAM_LUT.tx_phase_val_i = 255
-                    self.orion_lut.BEAM_LUT.tx_phase_val_q = 0
-                    self.orion_lut.BEAM_LUT.tx_gain_val = 1023
+                    self.orion_lut.BEAM_MEM.rx_phase_val_i = 255
+                    self.orion_lut.BEAM_MEM.rx_phase_val_q = 0
+                    self.orion_lut.BEAM_MEM.rx_gain_val = 2047
+                    self.orion_lut.BEAM_MEM.tx_phase_val_i = 255
+                    self.orion_lut.BEAM_MEM.tx_phase_val_q = 0
+                    self.orion_lut.BEAM_MEM.tx_gain_val = 2047
                 else:
-                    self.orion_lut.BEAM_LUT.rx_phase_val_i = 0
-                    self.orion_lut.BEAM_LUT.rx_phase_val_q = 255
-                    self.orion_lut.BEAM_LUT.rx_gain_val = 0
-                    self.orion_lut.BEAM_LUT.tx_phase_val_i = 0
-                    self.orion_lut.BEAM_LUT.tx_phase_val_q = 255
-                    self.orion_lut.BEAM_LUT.tx_gain_val = 0
+                    self.orion_lut.BEAM_MEM.rx_phase_val_i = 0
+                    self.orion_lut.BEAM_MEM.rx_phase_val_q = 255
+                    self.orion_lut.BEAM_MEM.rx_gain_val = 0
+                    self.orion_lut.BEAM_MEM.tx_phase_val_i = 0
+                    self.orion_lut.BEAM_MEM.tx_phase_val_q = 255
+                    self.orion_lut.BEAM_MEM.tx_gain_val = 0
 
-                self.orion_lut.BEAM_LUT.write()
+                self.orion_lut.BEAM_MEM.write()
 
     def init_tx(self, TX_BIAS_MODE, final_av=31, ant_sel=0xF):
         if self.version == 'v2':
