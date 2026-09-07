@@ -116,6 +116,8 @@ def connect(port_string):
         if orion.PHASE_CODE_TX0.phase_code_tx0 != 0x00:
             good = 0
 
+        spi.pa_set()
+
         if good:
             print('Connection SUCCESS: Sanity Passed')
             status['Status'] = f'Connected @ {port}'
