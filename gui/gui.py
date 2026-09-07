@@ -832,22 +832,22 @@ def display__tab_rf():
 
         ttk.Label(tab_rf, text=f"CH{i} PA ON Bias").grid(column=2 * i, row=8, padx=5, pady=5, sticky="w")
         pa_on_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
-        pa_on_bias_entries[i].insert(0, "100")
+        pa_on_bias_entries[i].insert(0, "127")
         pa_on_bias_entries[i].grid(column=2 * i + 1, row=8, padx=5, pady=5)
 
         ttk.Label(tab_rf, text=f"CH{i} PA OFF Bias").grid(column=2 * i, row=9, padx=5, pady=5, sticky="w")
         pa_off_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
-        pa_off_bias_entries[i].insert(0, "200")
+        pa_off_bias_entries[i].insert(0, "0")
         pa_off_bias_entries[i].grid(column=2 * i + 1, row=9, padx=5, pady=5)
 
         ttk.Label(tab_rf, text=f"CH{i} LNA ON Bias").grid(column=2 * i, row=10, padx=5, pady=5, sticky="w")
         lna_on_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
-        lna_on_bias_entries[i].insert(0, "100")
+        lna_on_bias_entries[i].insert(0, "0")
         lna_on_bias_entries[i].grid(column=2 * i + 1, row=10, padx=5, pady=5)
 
         ttk.Label(tab_rf, text=f"CH{i} LNA OFF Bias").grid(column=2 * i, row=11, padx=5, pady=5, sticky="w")
         lna_off_bias_entries.append(ttk.Entry(tab_rf, state="normal"))
-        lna_off_bias_entries[i].insert(0, "200")
+        lna_off_bias_entries[i].insert(0, "127")
         lna_off_bias_entries[i].grid(column=2 * i + 1, row=11, padx=5, pady=5)
 
     ttk.Button(tab_rf, text="Load RF",
