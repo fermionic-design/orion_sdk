@@ -164,18 +164,19 @@ class BEAM_MEM:
         # self.dev.write(self.pos*64+266 + self.ant*16,tx_val_sign)
         # self.dev.write(self.pos*64+267 + self.ant*16,tx_gain_val_lsb)
         # self.dev.write(self.pos*64+268 + self.ant*16,tx_gain_val_msb)
-        
-        self.dev.write(self.pos*64+264 + self.ant*16,rx_val_i, self.slv_addr, self.bdst)
-        self.dev.write(self.pos*64+265 + self.ant*16,rx_val_q, self.slv_addr, self.bdst)
-        self.dev.write(self.pos*64+266 + self.ant*16,rx_val_sign, self.slv_addr, self.bdst)
-        self.dev.write(self.pos*64+267 + self.ant*16,rx_gain_val_lsb, self.slv_addr, self.bdst)
-        self.dev.write(self.pos*64+268 + self.ant*16,rx_gain_val_msb, self.slv_addr, self.bdst)        
+
         self.dev.write(self.pos*64+256 + self.ant*16,tx_val_i, self.slv_addr, self.bdst)
         self.dev.write(self.pos*64+257 + self.ant*16,tx_val_q, self.slv_addr, self.bdst)
         self.dev.write(self.pos*64+258 + self.ant*16,tx_val_sign, self.slv_addr, self.bdst)
         self.dev.write(self.pos*64+259 + self.ant*16,tx_gain_val_lsb, self.slv_addr, self.bdst)
         self.dev.write(self.pos*64+260 + self.ant*16,tx_gain_val_msb, self.slv_addr, self.bdst)
-        
+
+        self.dev.write(self.pos*64+264 + self.ant*16,rx_val_i, self.slv_addr, self.bdst)
+        self.dev.write(self.pos*64+265 + self.ant*16,rx_val_q, self.slv_addr, self.bdst)
+        self.dev.write(self.pos*64+266 + self.ant*16,rx_val_sign, self.slv_addr, self.bdst)
+        self.dev.write(self.pos*64+267 + self.ant*16,rx_gain_val_lsb, self.slv_addr, self.bdst)
+        self.dev.write(self.pos*64+268 + self.ant*16,rx_gain_val_msb, self.slv_addr, self.bdst)
+
     def read(self):
         # rx_val_i = self.dev.read(self.pos*64+256 + self.ant*16)
         # rx_val_q = self.dev.read(self.pos*64+257 + self.ant*16)
