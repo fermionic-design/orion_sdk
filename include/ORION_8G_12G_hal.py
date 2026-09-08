@@ -569,12 +569,12 @@ class ORION_8G_12G_hal:
         BEAM_LUT_DEPTH = 128
         NUM_CH = 4
         for pos in range(BEAM_LUT_DEPTH):
+            self.orion_csr.PAGE_ID.page_id = 32 + int(pos / 4)  # beam lut starts at 8KB and each position is 64B, each page is 256B
+            self.orion_csr.PAGE_ID.write()
             for ant in range(NUM_CH):
-                self.orion_csr.PAGE_ID.page_id = 32+int(pos/4)    # beam lut starts at 8KB and each position is 64B, each page is 256B
-                self.orion_csr.PAGE_ID.write()
                 # print(f'init_beam_lut(): pos={pos}, ant={ant}')
                 self.orion_lut.BEAM_MEM.pos = pos%4
-                self.orion_lut.BEAM_MEM.ant_sel = ant
+                self.orion_lut.BEAM_MEM.ant = ant
 
                 if pos%2==0:
                     self.orion_lut.BEAM_MEM.rx_phase_val_i = 255
