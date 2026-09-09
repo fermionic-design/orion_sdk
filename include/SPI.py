@@ -3,10 +3,10 @@ import time
 from usb2spi import USB2SPIDriver
 
 class SPI:    
-    def __init__(self, port=None):
+    def __init__(self, port=None, log_en=None):
         self.val = [i for i in range(512)]
         if port is None:
-            self.dev = USB2SPIDriver('COM5')
+            self.dev = USB2SPIDriver('COM7')
         else:
             self.dev = USB2SPIDriver(port)
         time.sleep(1)
@@ -19,39 +19,48 @@ class SPI:
         self.rxlset=0
         self.paset=0
         self.gpio_data=0x00
+        self.log_en = log_en if log_en is not None else 0
+
+    def cfg_logging(self, log_en):
+        self.log_en = log_en
+
     def write(self,addr,data, slv_addr = None, bdst = None):
         if slv_addr == None and bdst == None:
             self.dev.sel()
             self.dev.write([0x3E | ((addr >> 8) & 1),addr & 0xFF,data])
             self.dev.unsel()
             self.val[addr] = data
-            # print(f'setting csr[{hex(addr)}] @default = {hex(data)}')
+            if self.log_en:
+                print(f'setting csr[{hex(addr)}] @default = {hex(data)}')
         elif bdst == 1:
             self.dev.sel()
             self.dev.write([0x40 | ((addr >> 8) & 1),addr & 0xFF,data])
             self.dev.unsel()
             self.val[addr] = data
-            # print(f'setting csr[{hex(addr)}] @bdst = {hex(data)}')
+            if self.log_en:
+                print(f'setting csr[{hex(addr)}] @bdst = {hex(data)}')
         elif bdst == 0:
             self.dev.sel()
             self.dev.write([(slv_addr<<1) | ((addr >> 8) & 1),addr & 0xFF,data])
             self.dev.unsel()
             self.val[addr] = data
-            # print(f'setting csr[{hex(addr)}] @{slv_addr} = {hex(data)}')
+            if self.log_en:
+                print(f'setting csr[{hex(addr)}] @{slv_addr} = {hex(data)}')
     def read(self,addr, slv_addr = None):
-
         if slv_addr == None:
             self.dev.sel()
             rx=list(self.dev.writeread([0xBE | ((addr >> 8) & 1),addr & 0xFF,0x00]))
             self.dev.unsel()
             self.val[addr]=rx[2]
-            # print(f'reading csr[{hex(addr)}] @default : {hex(self.val[addr])}')
+            if self.log_en:
+                print(f'reading csr[{hex(addr)}] @default : {hex(self.val[addr])}')
         else:
             self.dev.sel()
             rx=list(self.dev.writeread([0x80 | (slv_addr<<1) | ((addr >> 8) & 1),addr & 0xFF,0x00]))
             self.dev.unsel()
             self.val[addr]=rx[2]
-            # print(f'reading csr[{hex(addr)}] @{slv_addr} : {hex(self.val[addr])}')
+            if self.log_en:
+                print(f'reading csr[{hex(addr)}] @{slv_addr} : {hex(self.val[addr])}')
         return self.val[addr]
 
     def cfg_gpio(self):        
