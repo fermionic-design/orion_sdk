@@ -2,7 +2,7 @@ version = 'v2'
 import sys
 import time
 
-sys.path.append('../include')
+sys.path.append('../../include')
 
 from ORION_8G_12G import *
 from SPI import *

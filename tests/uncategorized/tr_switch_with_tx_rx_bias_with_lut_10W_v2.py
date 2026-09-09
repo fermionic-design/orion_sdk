@@ -8,10 +8,11 @@ Created on Thu Nov  2 17:34:30 2023
 
 import sys
 import time
-sys.path.append('../include')
+sys.path.append('../../include')
 import ORION_RF_CONTROL_FUNC as RF_CTRL_FUNC
 from ORION_8G_12G import *
 from ORION_8G_12G_lut import *
+from ORION_8G_12G_hal import *
 from SPI import *
 import pandas as pd
 import math
@@ -21,6 +22,7 @@ import math
 spi = SPI()
 orion = ORION_8G_12G(spi)
 orion_lut = ORION_8G_12G_lut(spi)
+orion_hal = ORION_8G_12G_hal(orion,orion_lut,spi,'v2')
 
 orion.DEVICE_ID.read()
 print('device_id = '+hex(orion.DEVICE_ID.device_id))
@@ -433,7 +435,7 @@ for i in range (64) :
     elif (TX_BIAS_MODE=="LOW"):
         tx_final_gain_val[i] = 12
     elif (TX_BIAS_MODE=="2W_FEM"):
-        tx_final_gain_val[i] = 3
+        tx_final_gain_val[i] = 9
     elif (TX_BIAS_MODE=="5W_FEM"):
         tx_final_gain_val[i] = 18
         
@@ -445,22 +447,22 @@ for i in range (64) :
 
 #-----------------------PA and LNA bias DAC ctrl select--------------------
 
-orion.DAC_CTRL_PA0.DAC_CTRL_PA0 = 48 # 0 corresponds to -2.5V
+orion.DAC_CTRL_PA0.DAC_CTRL_PA0 = 127 # 0 corresponds to -2.5V
 orion.DAC_CTRL_PA0.write()
-orion.DAC_CTRL_PA1.DAC_CTRL_PA1 = 0 # 0 corresponds to -2.5V
+orion.DAC_CTRL_PA1.DAC_CTRL_PA1 = 0 # 0 corresponds to -5V
 orion.DAC_CTRL_PA1.write()
-orion.DAC_CTRL_PA2.DAC_CTRL_PA2 = 0 # 0 corresponds to -2.5V
+orion.DAC_CTRL_PA2.DAC_CTRL_PA2 = 0 # 0 corresponds to -5V
 orion.DAC_CTRL_PA2.write()
-orion.DAC_CTRL_PA3.DAC_CTRL_PA3 = 0 # 0 corresponds to -2.5V
+orion.DAC_CTRL_PA3.DAC_CTRL_PA3 = 0 # 0 corresponds to -5V
 orion.DAC_CTRL_PA3.write()
 
-orion.DAC_CTRL_LNA0.DAC_CTRL_LNA0 = 127 # 0 corresponds to -2.5V
+orion.DAC_CTRL_LNA0.DAC_CTRL_LNA0 = 0 # 0 corresponds to -2.5V
 orion.DAC_CTRL_LNA0.write()
-orion.DAC_CTRL_LNA1.DAC_CTRL_LNA1 = 127 # 0 corresponds to -2.5V
+orion.DAC_CTRL_LNA1.DAC_CTRL_LNA1 = 127 # 0 corresponds to -5V
 orion.DAC_CTRL_LNA1.write()
-orion.DAC_CTRL_LNA2.DAC_CTRL_LNA2 = 127 # 0 corresponds to -2.5V
+orion.DAC_CTRL_LNA2.DAC_CTRL_LNA2 = 127 # 0 corresponds to -5V
 orion.DAC_CTRL_LNA2.write()
-orion.DAC_CTRL_LNA3.DAC_CTRL_LNA3 = 127 # 0 corresponds to -2.5V
+orion.DAC_CTRL_LNA3.DAC_CTRL_LNA3 = 127 # 0 corresponds to -5V
 orion.DAC_CTRL_LNA3.write()
 
 orion.DAC_CTRL_PA0_PDN.DAC_CTRL_PA0_PDN = 0 # 0 corresponds to -5V
@@ -486,7 +488,7 @@ orion.DAC_CTRL_LNA3_PDN.write()
 
 # Set rx_mask as 1 for lna0 and rx0, 2 for lna1 and rx1, 4 for lna2 and rx2, 8 for lna3 and rx3
 # Set tx_mask as 1 for pa0 and tx0, 2 for pa1 and tx1, 4 for pa2 and tx2, 8 for pa3 and tx3
-orion.TR_MASK.rx_mask = 0x0
+orion.TR_MASK.rx_mask = 0xF
 orion.TR_MASK.tx_mask = 0x1
 orion.TR_MASK.write()
 

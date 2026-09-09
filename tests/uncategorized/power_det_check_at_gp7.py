@@ -8,7 +8,7 @@ Created on Thu Nov  2 17:34:30 2023
 
 import sys
 import time
-sys.path.append('../include')
+sys.path.append('../../include')
 sys.path.append('../../include')
 import ORION_RF_CONTROL_FUNC as RF_CTRL_FUNC
 from ORION_8G_12G import *

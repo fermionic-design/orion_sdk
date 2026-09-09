@@ -2,7 +2,7 @@ import sys
 import time
 import csv
 
-sys.path.append('../include')
+sys.path.append('../../include')
 
 from ORION_8G_12G import *
 from SPI import *

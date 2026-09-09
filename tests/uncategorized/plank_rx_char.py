@@ -1,7 +1,7 @@
 import sys
 import time
 import csv
-sys.path.append('../include')
+sys.path.append('../../include')
 from ORION_8G_12G import *
 from SPI import *
 from ORION_8G_12G_lut import *
@@ -20,7 +20,7 @@ bias_ch_list = {
     0x00: [0, 1, 2],
     0x03: [0, 1, 2]
 }
-cal_file = r"../PA_DAC_Calibration_Log_20250820_151954.csv"
+cal_file = r"C:\Users\silic\OneDrive\Documents\GitHub\orion\demo\rci\Cal results\RX_LNA_DAC_Calibration_Log_20250814_111756.csv"
 ############## END: User Settings ##########################################  
 
 spi = SPI()
@@ -39,20 +39,20 @@ try:
         reader = csv.DictReader(f)
         for row in reader:
             dev = row["Device"].strip()
-            tx_ch = int(row["TX_Channel"])
-            cal_data[(dev, tx_ch)] = {
+            rx_ch = int(row["RX_Channel"])
+            cal_data[(dev, rx_ch)] = {
                 "dac_code": int(row["DAC_Code"]),
                 "p_idx": int(row["P_Idx"]),
-                "g_idx": int(row["G_Idx"]),
-                "forced_av": int(row["Forced_Av"])
+                "g_idx": int(row["G_Idx"])
             }
     print(f"Loaded calibration from: {cal_file}")
 except FileNotFoundError:
     print(f"⚠️ No calibration file found at {cal_file}")
+
     
 hal_bdst.dac_cfg(pa_sel=0xF, lna_sel=0xF)
 hal_bdst.init_lut_new(
-    r'../orion/final_lut/TX_Gain_LUT_10p5GHz.xlsx',
+    r'../final_lut/TX_Gain_LUT_10p5GHz.xlsx',
     r'../results/LUT/tx_phase_lut_9p5_pm_0p5_gm_0p4.xlsx',
     r'../results/LUT/RX0_Gain_LUT_9p5GHz_LowBias_I_460_Q_8.xlsx',
     r'../results/LUT/phase_lut_freq_9p5_gm_0p5_pm_1p5_optimal.xlsx',
@@ -61,35 +61,33 @@ hal_bdst.init_lut_new(
 )
 hal_bdst.cfg_stg2_load('REG')
 hal_bdst.set_tr_mode('EXT_TR')
-hal_bdst.set_trx_mode(1)
+hal_bdst.set_trx_mode(0)
 hal_bdst.en_data_path(1)
-spi.pa_set()
-hal_bdst.init_tx('5W_FEM')
+hal_bdst.init_rx('LOW')
+hal_bdst.set_freq('9G')
+hal_bdst.enable_rx_correction(1)
 
 for (name, hal), addr in zip(hal_devs.items(), dev_addr):
-    tx_channels = rf_ch_list[addr]
-    pa_channels = bias_ch_list[addr]
-    pa_keys = [f'PA{ch}' for ch in pa_channels]
-    tx_mask = sum(1 << ch for ch in tx_channels)
-    hal.set_trx_mode(1) #this is kept here to set trx_mode = 1 for every device object
-    hal.set_tr_mask(tx_mask=tx_mask)
-    hal.en_data_path(1)
+    rx_channels = rf_ch_list[addr]
+    lna_channels = bias_ch_list[addr]
+    lna_keys = [f'LNA{ch}' for ch in lna_channels]
+    rx_mask = sum(1 << ch for ch in rx_channels)
+    hal.set_tr_mask(rx_mask=rx_mask)
     print(f"Device: {name} (ADDR: {hex(addr)})")
-    for tx_ch, pa_key in zip(tx_channels, pa_keys):
-        tx_en = 1 << tx_ch 
-        initial_vals = cal_data[(name, tx_ch)]
+    for rx_ch, lna_key in zip(rx_channels, lna_keys):
+        # hal_bdst.dac_cfg(pa_sel=0xF, lna_sel=0xF)
+        rx_en = 1 << rx_ch 
+        initial_vals = cal_data[(name, rx_ch)]
         base_p_idx = initial_vals["p_idx"]
         base_g_idx = initial_vals["g_idx"]
         dac_code = initial_vals["dac_code"]
-        forced_av = initial_vals["forced_av"]       
-        hal.set_lut_idx(p_idx=base_p_idx, g_idx=base_g_idx, ant_sel=tx_en)
-        hal.force_tx_Av(Av=forced_av, ant_sel=tx_en)
+        hal.set_lut_idx(p_idx=base_p_idx, g_idx=base_g_idx, ant_sel=rx_en)
         hal.stg2_load()
-        hal.dac_cfg(pa_sel=tx_en, lna_sel=0, **{pa_key: dac_code})
-        print(f"✅ {name} - TX{tx_ch} / {pa_key}: DAC={dac_code}, "
-              f"P_Idx={base_p_idx}, G_Idx={base_g_idx}, Forced_Av_val={forced_av}")
-input("Check the calibrated gain, phase at this point and press enter to see other channel")
-            
+        hal.dac_cfg(pa_sel=0, lna_sel=rx_en, **{lna_key: dac_code})
+        print(f"✅ {name} - RX{rx_ch} / {lna_key}: DAC={dac_code}, "
+              f"P_Idx={base_p_idx}, G_Idx={base_g_idx}")
+input("Check the calibrated gain, phase of all device, all channels at this point..")
+
 prev_p_delta = [
     [0, 0, 0],
     [0, 0, 0]
@@ -97,7 +95,7 @@ prev_p_delta = [
 prev_g_delta = [
     [0, 0, 0],
     [0, 0, 0]
-]
+]          
 # === Get deltas for each device and channel from user===
 while True:
     delta_p = []
@@ -124,43 +122,40 @@ while True:
                 print(f"Invalid input: {e}. Please try again.")  
             
     for dev_idx, ((name, hal), addr) in enumerate(zip(hal_devs.items(), dev_addr)):
-        tx_channels = rf_ch_list[addr]
-        pa_channels = bias_ch_list[addr]
-        pa_keys = [f'PA{ch}' for ch in pa_channels]
+        rx_channels = rf_ch_list[addr]
+        lna_channels = bias_ch_list[addr]
+        lna_keys = [f'LNA{ch}' for ch in lna_channels]
         print(f"Device: {name} (ADDR: {hex(addr)})")
-        for ch_idx, (tx_ch, pa_key) in enumerate(zip(tx_channels, pa_keys)):
-            tx_en = 1 << tx_ch            
-            initial_vals = cal_data[(name, tx_ch)]
+        for ch_idx, (rx_ch, lna_key) in enumerate(zip(rx_channels, lna_keys)):
+            rx_en = 1 << rx_ch            
+            initial_vals = cal_data[(name, rx_ch)]
             base_p_idx = initial_vals["p_idx"]
             base_g_idx = initial_vals["g_idx"]
             dac = initial_vals["dac_code"]
-            forced_av = initial_vals["forced_av"] 
             delta_p[dev_idx][ch_idx] = delta_p[dev_idx][ch_idx] + prev_p_delta[dev_idx][ch_idx]
-            delta_g[dev_idx][ch_idx] = delta_g[dev_idx][ch_idx] + prev_g_delta[dev_idx][ch_idx]                        
+            delta_g[dev_idx][ch_idx] = delta_g[dev_idx][ch_idx] + prev_g_delta[dev_idx][ch_idx]
              # Apply delta for this device & channel
             p_idx = base_p_idx + delta_p[dev_idx][ch_idx]
             g_idx = base_g_idx + delta_g[dev_idx][ch_idx]
     
             # Wrap/limit values as per your original constraints
-            if p_idx == 0:
+            if p_idx < 4:
                 p_idx = base_p_idx
-            if p_idx >= 128:
-                offset = p_idx-128
-                p_idx = 0 + offset             
+            if p_idx >= 125:
+                offset = p_idx-125
+                p_idx = 4 + offset
             if g_idx > 63:
                 g_idx = 63
             if g_idx <= 0:
                 g_idx = base_g_idx
-    
             # Apply settings
-            hal.set_lut_idx(p_idx=p_idx, g_idx=g_idx, ant_sel=tx_en)
-            hal.force_tx_Av(Av=forced_av, ant_sel=tx_en)
+            hal.set_lut_idx(p_idx=p_idx, g_idx=g_idx, ant_sel=rx_en)
             hal.stg2_load()
             prev_p_delta[dev_idx][ch_idx] = delta_p[dev_idx][ch_idx]
-            prev_g_delta[dev_idx][ch_idx] = delta_g[dev_idx][ch_idx]  
-            print(f"✅ {name} - TX{tx_ch} / {pa_key}: DAC={dac}, "
-                  f"P_Idx={p_idx}, G_Idx={g_idx}, Forced Av={forced_av}")
-    input("Check the new gain, phase at this point for all elements")
+            prev_g_delta[dev_idx][ch_idx] = delta_g[dev_idx][ch_idx]
+            print(f"✅ {name} - RX{rx_ch} / {lna_key}: DAC={dac}, "
+                  f"P_Idx={p_idx}, G_Idx={g_idx}")
+            input("Check the new gain, phase at this point and press enter to see other channel")
               
     # Ask user if they want to repeat with new deltas or exit
     cont = input("Do you want to enter another set of delta values? (y/n): ").strip().lower()

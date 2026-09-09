@@ -13,7 +13,7 @@ Line no: 112, give proper detector channel as input -  0 for DET0, 1 for DET1, 2
 """
 
 import sys
-sys.path.append('../include')
+sys.path.append('../../include')
 import ORION_RF_CONTROL_FUNC as RF_CTRL_FUNC
 from ORION_8G_12G import *
 from SPI import *

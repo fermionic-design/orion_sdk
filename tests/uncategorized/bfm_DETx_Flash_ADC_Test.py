@@ -19,7 +19,7 @@ Usage: run standalone against a connected/simulated BFM part over SPI.
 """
 
 import sys
-sys.path.append('../include')
+sys.path.append('../../include')
 import ORION_RF_CONTROL_FUNC as RF_CTRL_FUNC
 from ORION_8G_12G import *
 from SPI import *

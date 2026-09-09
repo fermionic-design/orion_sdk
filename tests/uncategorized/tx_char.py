@@ -29,7 +29,7 @@ d2 = 1  # delay after normalization
 d3 = 0.6
 # Libraries
 import sys
-sys.path.append('../include')
+sys.path.append('../../include')
 import time
 from libs.fd_cmn.instruments.instruments import instruments
 from ORION_8G_12G import *

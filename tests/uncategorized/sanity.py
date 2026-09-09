@@ -2,7 +2,7 @@ import sys
 import serial
 
 
-sys.path.append('../include')
+sys.path.append('../../include')
 
 from ORION_8G_12G import *
 from ORION_8G_12G_lut import *
