@@ -576,7 +576,25 @@ class ORION_8G_12G_hal:
                 self.orion_lut.BEAM_MEM.pos = pos%4
                 self.orion_lut.BEAM_MEM.ant = ant
 
-                if pos%2==0:
+                # print(f'pos={pos}, ant={ant}')
+                if pos % 4 == 0:
+                    # print('I=255, Q=0, Av=2047')
+                    self.orion_lut.BEAM_MEM.rx_phase_val_i = 255
+                    self.orion_lut.BEAM_MEM.rx_phase_val_q = 0
+                    self.orion_lut.BEAM_MEM.rx_gain_val = 2047
+                    self.orion_lut.BEAM_MEM.tx_phase_val_i = 255
+                    self.orion_lut.BEAM_MEM.tx_phase_val_q = 0
+                    self.orion_lut.BEAM_MEM.tx_gain_val = 2047
+                elif pos % 4 == 1:
+                    # print('I=255, Q=0, Av=0')
+                    self.orion_lut.BEAM_MEM.rx_phase_val_i = 255
+                    self.orion_lut.BEAM_MEM.rx_phase_val_q = 0
+                    self.orion_lut.BEAM_MEM.rx_gain_val = 0
+                    self.orion_lut.BEAM_MEM.tx_phase_val_i = 255
+                    self.orion_lut.BEAM_MEM.tx_phase_val_q = 0
+                    self.orion_lut.BEAM_MEM.tx_gain_val = 0
+                elif pos % 4 == 2:
+                    # print('I=255, Q=0, Av=2047')
                     self.orion_lut.BEAM_MEM.rx_phase_val_i = 255
                     self.orion_lut.BEAM_MEM.rx_phase_val_q = 0
                     self.orion_lut.BEAM_MEM.rx_gain_val = 2047
@@ -584,14 +602,69 @@ class ORION_8G_12G_hal:
                     self.orion_lut.BEAM_MEM.tx_phase_val_q = 0
                     self.orion_lut.BEAM_MEM.tx_gain_val = 2047
                 else:
+                    # print('I=0, Q=255, Av=2047')
                     self.orion_lut.BEAM_MEM.rx_phase_val_i = 0
                     self.orion_lut.BEAM_MEM.rx_phase_val_q = 255
-                    self.orion_lut.BEAM_MEM.rx_gain_val = 0
+                    self.orion_lut.BEAM_MEM.rx_gain_val = 2047
                     self.orion_lut.BEAM_MEM.tx_phase_val_i = 0
                     self.orion_lut.BEAM_MEM.tx_phase_val_q = 255
-                    self.orion_lut.BEAM_MEM.tx_gain_val = 0
+                    self.orion_lut.BEAM_MEM.tx_gain_val = 2047
 
                 self.orion_lut.BEAM_MEM.write()
+
+    def init_rx_lut_ate(self):
+        # TODO(abhra): move these to a common place
+        NUM_FREQ = 2
+        NUM_TEMP = 4
+        RX_GAIN_LUT_DEPTH = 64
+        RX_PHASE_LUT_DEPTH = 128
+        NUM_BYTES_PER_PAGE = 256
+
+        NUM_BYTES_PER_RX_PHASE_UNIT = 4
+        NUM_BYTES_PER_RX_PHASE_CODE = NUM_BYTES_PER_RX_PHASE_UNIT * NUM_TEMP
+        NUM_RX_PHASE_CODES_PER_PAGE = int(NUM_BYTES_PER_PAGE / NUM_BYTES_PER_RX_PHASE_CODE)
+
+        NUM_BYTES_PER_RX_GAIN_UNIT = 4
+        NUM_BYTES_PER_RX_GAIN_CODE = NUM_BYTES_PER_RX_GAIN_UNIT * NUM_TEMP
+        NUM_RX_GAIN_CODES_PER_PAGE = int(NUM_BYTES_PER_PAGE / NUM_BYTES_PER_RX_GAIN_CODE)
+
+        RX_PHASE_LUT_START_PAGE = 0
+        RX_GAIN_LUT_START_PAGE = 16
+
+        for f in range(NUM_FREQ):
+            for i in range(RX_PHASE_LUT_DEPTH):
+                if i%NUM_RX_PHASE_CODES_PER_PAGE == 0:
+                    self.orion_csr.PAGE_ID.page_id = (  RX_PHASE_LUT_START_PAGE +
+                                                        f * int(NUM_BYTES_PER_RX_PHASE_CODE * RX_PHASE_LUT_DEPTH / NUM_BYTES_PER_PAGE) +
+                                                        int(i/NUM_RX_PHASE_CODES_PER_PAGE)
+                                                     )
+                    print(f'page_id = {self.orion_csr.PAGE_ID.page_id}')
+                    self.orion_csr.PAGE_ID.write()
+                for t in range(NUM_TEMP):
+                    print(f'freq = {f}, code = {i}, temp = {t}')
+                    self.orion_lut.RX_PHASE_MEM.pos = i%NUM_RX_PHASE_CODES_PER_PAGE
+                    self.orion_lut.RX_PHASE_MEM.rx_temp_val = t
+                    self.orion_lut.RX_PHASE_MEM.rx_phase_val_i = [255,0,255,0,0,255,0,255][NUM_TEMP*f+t]
+                    self.orion_lut.RX_PHASE_MEM.rx_phase_val_q = [0,255,0,255,255,0,255,0][NUM_TEMP*f+t]
+                    print(self.orion_lut.RX_PHASE_MEM.rx_phase_val_i, self.orion_lut.RX_PHASE_MEM.rx_phase_val_q)
+                    self.orion_lut.RX_PHASE_MEM.rx_gain_err = 0
+                    self.orion_lut.RX_PHASE_MEM.write()
+
+        for f in range(NUM_FREQ):
+            for i in range(RX_GAIN_LUT_DEPTH):
+                if i%NUM_RX_GAIN_CODES_PER_PAGE == 0:
+                    self.orion_csr.PAGE_ID.page_id =   (RX_GAIN_LUT_START_PAGE +
+                                                       f * int(NUM_BYTES_PER_RX_GAIN_CODE * RX_GAIN_LUT_DEPTH / NUM_BYTES_PER_PAGE) +
+                                                       int(i/NUM_RX_GAIN_CODES_PER_PAGE))
+                    # print(f'page_id = {self.orion_csr.PAGE_ID.page_id}')
+                    self.orion_csr.PAGE_ID.write()
+                for t in range(NUM_TEMP):
+                    # print(f'freq = {f}, code = {i}, temp={t}')
+                    self.orion_lut.RX_GAIN_MEM.pos = i%NUM_RX_GAIN_CODES_PER_PAGE;
+                    self.orion_lut.RX_GAIN_MEM.rx_temp_val = t;
+                    self.orion_lut.RX_GAIN_MEM.rx_gain_val = [2047, 1023, 511, 255, 255, 511, 1023, 2047][NUM_TEMP*f+t];
+                    self.orion_lut.RX_GAIN_MEM.rx_ph_err = 0;
+                    self.orion_lut.RX_GAIN_MEM.write()
 
     def init_tx(self, TX_BIAS_MODE, final_av=31, ant_sel=0xF):
         if self.version == 'v2':
@@ -886,7 +959,9 @@ class ORION_8G_12G_hal:
             self.orion_csr.UPDATE_CODE.update_code = 0
             self.orion_csr.UPDATE_CODE.write()           
         else:
-            self.spi.txl_tggl()    
+            self.spi.txl_reset()
+            self.spi.txl_set()
+            self.spi.txl_reset()
 
     def set_iq_val(self, I=None, Q=None, Av=None, ant_sel=0xF, mode=None):
         
@@ -1175,3 +1250,11 @@ class ORION_8G_12G_hal:
 
         self.orion_csr.REG0_ADC.en_gp7_to_adc_sw = (gp7_to_adc_input & 0x01)
         self.orion_csr.REG0_ADC.write()
+
+    def sync_rst(self):
+        self.orion_csr.SYNC_RST.sync_rst = 0
+        self.orion_csr.SYNC_RST.write()
+        self.orion_csr.SYNC_RST.sync_rst = 1
+        self.orion_csr.SYNC_RST.write()
+        self.orion_csr.SYNC_RST.sync_rst = 0
+        self.orion_csr.SYNC_RST.write()
