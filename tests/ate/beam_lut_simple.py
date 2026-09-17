@@ -9,7 +9,7 @@ from ORION_8G_12G_lut import *
 from ORION_8G_12G_hal import *
 from SPI import *
 
-spi = SPI()
+spi = SPI(log_en=1)
 orion_csr = ORION_8G_12G(spi)
 orion_lut = ORION_8G_12G_lut(spi)
 orion_hal = ORION_8G_12G_hal(orion_csr,orion_lut,spi,version)
@@ -47,6 +47,8 @@ orion_csr.TX_BEAM_STOP_ADDR.write()
 
 orion_csr.BEAM_CFG.beam_cfg_done = 1
 orion_csr.BEAM_CFG.write()
+
+spi.cfg_logging(log_en=0)
 
 for _ in range(16):
     orion_hal.stg2_load()
