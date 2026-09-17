@@ -1,3 +1,5 @@
+from include.ORION_8G_12G import FREQ_ID, TEMP_CORR_CFG
+
 version = 'v2'
 import sys
 sys.path.append('../../include')
@@ -9,10 +11,12 @@ from ORION_8G_12G_lut import *
 from ORION_8G_12G_hal import *
 from SPI import *
 
-spi = SPI(log_en=1)
+spi = SPI()
 orion_csr = ORION_8G_12G(spi)
 orion_lut = ORION_8G_12G_lut(spi)
 orion_hal = ORION_8G_12G_hal(orion_csr,orion_lut,spi,version)
+
+spi.cfg_logging(log_en=1)
 
 orion_csr.DEVICE_ID.read()
 print('device_id = '+hex(orion_csr.DEVICE_ID.device_id))
@@ -22,36 +26,36 @@ print('major_revision = '+hex(orion_csr.REVISION.major_rev))
 print('minor_revision = '+hex(orion_csr.REVISION.minor_rev))
 
 orion_hal.set_tr_mode('INT_TR')
-orion_hal.set_trx_mode(1)
-orion_hal.init_tx('MAX')
-orion_hal.set_tr_mask(tx_mask=0x1)
+#orion_hal.set_trx_mode(1)
+orion_hal.set_trx_mode(0)
+#orion_hal.init_tx('MAX')
+orion_hal.init_rx('NOM')
+#orion_hal.set_tr_mask(tx_mask=0x1)
+orion_hal.set_tr_mask(rx_mask=0x1)
 orion_hal.set_freq('9G')
 orion_hal.cfg_stg2_load('REG')
 orion_hal.en_data_path(1)
 
-orion_hal.init_rx_lut_ate()
+#orion_hal.init_rx_lut_ate()
+orion_hal.init_rx_temp_comp_lut_ate()
 
 spi.cfg_logging(log_en=0)
 
-for _ in range(16):
-    orion_hal.stg2_load()
-    # input()
+#for _ in range(11):
+orion_hal.stg2_load()
+# input()
+NUM_FREQ = 2
+NUM_TEMP = 4
 
-# orion_csr.TX0_STS_REG.read()
-# print('tx0_iphase_ctrl = '+hex(orion_csr.TX0_STS_REG.TX0_iphase_ctrl))
-#
-# orion_csr.TX0_STS_REG_1.read()
-# print('tx0_qphase_ctrl = '+hex(orion_csr.TX0_STS_REG_1.TX0_qphase_ctrl))
-#
-# orion_csr.TX0_STS_REG_2.read()
-# print('tx0_sign_i = '+hex(orion_csr.TX0_STS_REG_2.TX0_sign_i))
-# print('tx0_sign_q = '+hex(orion_csr.TX0_STS_REG_2.TX0_sign_q))
-#
-# orion_csr.TX0_STS_REG_3.read()
-# print('tx0_gain_ctrl_lsb = '+hex(orion_csr.TX0_STS_REG_3.TX0_gain_ctrl_lsb))
-#
-# orion_csr.TX0_STS_REG_4.read()
-# print('tx0_gain_ctrl_msb = '+hex(orion_csr.TX0_STS_REG_4.TX0_gain_ctrl_msb))
-# print('tx0_final_gain_ctrl = '+hex(orion_csr.TX0_STS_REG_4.TX0_final_gain_ctrl))
+for f in range(NUM_FREQ):
+    for t in range(NUM_TEMP):
+        print("Freq idx="+str(f)+"; Temp idx="+str(t)+";")
+        orion_csr.FREQ_ID.freq_id=f
+        orion_csr.FREQ_ID.write()
+        orion_csr.TEMP_CORR_CFG.force_ana_temp=0x1
+        orion_csr.TEMP_CORR_CFG.force_ana_temp_val = t
+        orion_csr.TEMP_CORR_CFG.write()
+        #read rx gain and phase values from VNA
+        #expected gain shift = 0dB, expected phase shift = 45deg
 
 spi.close()
