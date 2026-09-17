@@ -697,8 +697,8 @@ class ORION_8G_12G_hal:
                     print(f'freq = {f}, code = {i}, temp = {t}')
                     self.orion_lut.RX_PHASE_MEM.pos = i%NUM_RX_PHASE_CODES_PER_PAGE
                     self.orion_lut.RX_PHASE_MEM.rx_temp_val = t
-                    self.orion_lut.RX_PHASE_MEM.rx_phase_val_i = [210,218,82,346,474,466,322,90][NUM_TEMP*f+t]
-                    self.orion_lut.RX_PHASE_MEM.rx_phase_val_q = [3,386,450,418,4,138,194,162][NUM_TEMP*f+t]
+                    self.orion_lut.RX_PHASE_MEM.rx_phase_val_i = [255,0,511,0,511,0,255,0][NUM_TEMP*f+t]
+                    self.orion_lut.RX_PHASE_MEM.rx_phase_val_q = [0,511,0,255,0,255,0,511][NUM_TEMP*f+t]
                     print(self.orion_lut.RX_PHASE_MEM.rx_phase_val_i, self.orion_lut.RX_PHASE_MEM.rx_phase_val_q)
                     self.orion_lut.RX_PHASE_MEM.rx_gain_err = 0
                     self.orion_lut.RX_PHASE_MEM.write()
