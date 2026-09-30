@@ -19,6 +19,8 @@ from scipy.interpolate import RegularGridInterpolator
 csv_files = [
     r'C:\Users\silic\Github\orion_sdk\tests\char\logs\rx_iq_char__v2__ant_sel_1__vdd_3p3__temp_25C__bias_NOM__av_2047__iq_[-128,4,128]__2026-09-30_20-46-38.csv',
     r'C:\Users\silic\Github\orion_sdk\tests\char\logs\rx_iq_char__v2__ant_sel_2__vdd_3p3__temp_25C__bias_NOM__av_2047__iq_[-128,4,128]__2026-09-30_19-48-23.csv',
+    r'C:\Users\silic\Github\orion_sdk\tests\char\logs\rx_iq_char__v2__ant_sel_4__vdd_3p3__temp_25C__bias_NOM__av_2047__iq_[-128,4,128]__2026-09-30_21-10-35.csv',
+    r'C:\Users\silic\Github\orion_sdk\tests\char\logs\rx_iq_char__v2__ant_sel_8__vdd_3p3__temp_25C__bias_NOM__av_2047__iq_[-128,4,128]__2026-09-30_21-40-56.csv',
 ]
 lut_depth = 121   # LUT entries, 360/121 = 2.975 deg apart
 
@@ -110,6 +112,7 @@ print(f'\nLUT: {lut_depth} entries, {step:.3f} deg apart, built on {ref.name}')
 print(f'{"file":<40}{"raw rms":>9}{"raw pk":>8}{"offset":>9}{"rms":>7}{"pk":>7}   gain sd   (deg; rms/pk are after removing the offset)')
 
 fig2, ax2 = plt.subplots(figsize=(10, 5))
+err_std = {}
 for k, sw in enumerate(sweeps[1:], start=1):
     err = wrap(sw.phase_at(lut_i, lut_q) - wrap(target))                   # error vs LUT target
     offset = np.degrees(np.angle(np.mean(np.exp(1j * np.radians(err)))))   # constant phase offset
@@ -117,6 +120,7 @@ for k, sw in enumerate(sweeps[1:], start=1):
     g = sw.gain_at(lut_i, lut_q)
     print(f'{sw.name:<40}{np.sqrt(np.mean(err**2)):9.2f}{np.abs(err).max():8.2f}{offset:9.2f}'
           f'{np.sqrt(np.mean(err0**2)):7.2f}{np.abs(err0).max():7.2f}{g.std():9.2f}')
+    err_std[sw.name] = err0.std()
     ax2.plot(np.arange(lut_depth), err0, '.-', color=plt.cm.tab10(k % 10), label=f'{sw.name} (offset {offset:.1f} deg removed)')
 
     fig3, ax3 = plt.subplots(figsize=(8, 7))
@@ -132,4 +136,8 @@ for k, sw in enumerate(sweeps[1:], start=1):
 ax2.set_title(f'Phase error of the {lut_depth}-entry LUT from {ref.name}')
 ax2.set_xlabel('LUT index'); ax2.set_ylabel('Phase error (deg)'); ax2.grid(True); ax2.legend(fontsize=7)
 fig2.tight_layout()
+
+print('\nPhase error STDDEV (deg), offset removed:')
+for name, sd in err_std.items():
+    print(f'  {sd:6.2f}  {name}')
 plt.show()
