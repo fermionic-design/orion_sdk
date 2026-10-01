@@ -75,7 +75,7 @@ tag = lambda x: f'{x:g}'.replace('.', 'p')
 g_tag = f'{g_idxs[0]}' if len(g_idxs) == 1 else f'{g_idxs[0]},{g_step},{g_idxs[-1]}'
 p_tag = f'{p_idxs[0]}' if len(p_idxs) == 1 else f'{p_idxs[0]},1,{p_idxs[-1]}'
 os.makedirs('./logs', exist_ok=True)
-csv_path = f'./logs/rx_iq_sweep__{version}__ant_sel_{ant_sel}__bias_{bias}__sweep_{sweep}__g_[{g_tag}]__p_[{p_tag}]__freq_{tag(f_mark)}__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
+csv_path = f'./logs/rx_Av_iq_sweep__{version}__ant_sel_{ant_sel}__bias_{bias}__sweep_{sweep}__g_[{g_tag}]__p_[{p_tag}]__freq_{tag(f_mark)}__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
 csv_fh = open(csv_path, 'w', newline='')
 csv_out = csv.writer(csv_fh)
 csv_out.writerow(['g_idx', 'p_idx', 'Gain dB', 'Phase deg', 'Gain err dB', 'Phase err deg'])
