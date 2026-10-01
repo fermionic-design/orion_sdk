@@ -22,7 +22,9 @@ csv_files = [
     r'C:\Users\silic\Github\orion_sdk\tests\char\logs\rx_iq_char__v2__ant_sel_4__vdd_3p3__temp_25C__bias_NOM__av_2047__iq_[-128,4,128]__2026-09-30_21-10-35.csv',
     r'C:\Users\silic\Github\orion_sdk\tests\char\logs\rx_iq_char__v2__ant_sel_8__vdd_3p3__temp_25C__bias_NOM__av_2047__iq_[-128,4,128]__2026-09-30_21-40-56.csv',
 ]
+
 lut_depth = 121   # LUT entries, 360/121 = 2.975 deg apart
+backoff_db = 10    # use the closed contour this many dB below each file's highest-gain closed contour (0 = highest)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--freq', type=float, default=9.5, help='GHz (nearest column is used)')
@@ -63,7 +65,9 @@ class Sweep:
         gen = contourpy.contour_generator(g.columns.values, g.index.values, g.values)
         span = max(g.columns.max() - g.columns.min(), g.index.max() - g.index.min())
         for lvl in np.linspace(g.values.max(), g.values.min(), 1000):
+                continue
             loops = [s for s in gen.lines(lvl) if len(s) > 3 and np.allclose(s[0], s[-1]) and path_len(s) > 0.2 * span]
+            if loops and lvl_max is None:
             if loops:
                 return lvl, max(loops, key=path_len)
         raise RuntimeError(f'no closed contour in {self.name}')
