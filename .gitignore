@@ -2,3 +2,4 @@
 /logs
 *.pyc
 tests/char/logs/*.csv
+scripts/logs/*.xlsx
