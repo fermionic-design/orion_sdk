@@ -8,8 +8,8 @@ temp = '25C'    # temperature, label for the file name only
 bias = 'NOM'    # RX bias: 'NOM' or 'LOW'
 ant_sel = 0x1   # RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
 av = 2047
-i_codes = list(range(-128, 129, 4))   # multiples of 4 -> 2 LSBs are 0
-q_codes = list(range(-128, 129, 4))   # multiples of 4 -> 2 LSBs are 0
+i_codes = list(range(-252, 253, 4))   # multiples of 4 -> 2 LSBs are 0
+q_codes = list(range(-252, 253, 4))   # multiples of 4 -> 2 LSBs are 0
 
 f_min, f_max, f_step = 7, 13, 0.25
 f_disp = 9.5   # GHz printed
