@@ -2,7 +2,7 @@ import csv
 import os
 import re
 
-LOG_PATH = r"C:\Users\silic\GitHub\orion_sdk\logs\beam_lut_simple.log"  # <-- change this before running
+LOG_PATH = r"../logs/beam_lut_mod4.log"  # <-- change this before running
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.join(SCRIPT_DIR, '..')
