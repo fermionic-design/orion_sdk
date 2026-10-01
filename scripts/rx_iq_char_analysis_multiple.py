@@ -1,5 +1,5 @@
 """
-Overlay the highest-gain closed I/Q contour, and the phase along it, from several
+Overlay a closed I/Q gain contour (backoff_db below the highest-gain one), and the phase along it, from several
 csv files written by tests/char/rx_iq_char.py.
 
 It also builds a phase LUT (lut_depth entries, 360/lut_depth deg apart) on that contour of
@@ -64,10 +64,15 @@ class Sweep:
         g = self.gain
         gen = contourpy.contour_generator(g.columns.values, g.index.values, g.values)
         span = max(g.columns.max() - g.columns.min(), g.index.max() - g.index.min())
+        lvl_max = None
         for lvl in np.linspace(g.values.max(), g.values.min(), 1000):
+            if lvl_max is not None and lvl > lvl_max - backoff_db:
                 continue
             loops = [s for s in gen.lines(lvl) if len(s) > 3 and np.allclose(s[0], s[-1]) and path_len(s) > 0.2 * span]
             if loops and lvl_max is None:
+                lvl_max = lvl   # highest-gain closed contour
+                if backoff_db > 0:
+                    continue
             if loops:
                 return lvl, max(loops, key=path_len)
         raise RuntimeError(f'no closed contour in {self.name}')
@@ -92,7 +97,7 @@ for k, sw in enumerate(sweeps):
     ax[0].plot(i, q, color=color, lw=2, label=label)
     ax[1].plot(ang[order], ph, '.-', color=color, label=label)
 
-ax[0].set_title(f'Highest-gain closed contour @ {sweeps[0].ghz:g} GHz')
+ax[0].set_title(f'Closed contour {backoff_db:g} dB below the highest @ {sweeps[0].ghz:g} GHz')
 ax[0].set_xlabel('I code'); ax[0].set_ylabel('Q code'); ax[0].set_aspect('equal'); ax[0].grid(True)
 ax[1].set_title('Phase along the contour')
 ax[1].set_xlabel('Angle in I/Q plane (deg)'); ax[1].set_ylabel('Phase (deg)'); ax[1].grid(True)
@@ -112,6 +117,16 @@ step = 360 / lut_depth
 target = ph[0] + sign * step * np.arange(lut_depth)   # LUT phase targets (deg)
 lut_i = np.interp(sign * target, sign * ph[order], i[order])
 lut_q = np.interp(sign * target, sign * ph[order], q[order])
+
+# use only measured codes: pick the grid point near each interpolated spot whose reference phase is closest to the target
+gstep = ref.gain.columns[1] - ref.gain.columns[0]
+nb = np.arange(-2, 3) * gstep
+for n in range(lut_depth):
+    ci, cq = [a.ravel() for a in np.meshgrid(np.round(lut_i[n] / gstep) * gstep + nb, np.round(lut_q[n] / gstep) * gstep + nb)]
+    ok = (np.abs(ci) <= ref.gain.columns.max()) & (np.abs(cq) <= ref.gain.index.max())
+    ci, cq = ci[ok], cq[ok]
+    b = np.argmin(np.abs(wrap(ref.phase_at(ci, cq) - wrap(target[n]))))
+    lut_i[n], lut_q[n] = ci[b], cq[b]
 print(f'\nLUT: {lut_depth} entries, {step:.3f} deg apart, built on {ref.name}')
 print(f'{"file":<40}{"raw rms":>9}{"raw pk":>8}{"offset":>9}{"rms":>7}{"pk":>7}   gain sd   (deg; rms/pk are after removing the offset)')
 
