@@ -8,6 +8,8 @@ Array factor: AF(u, v) = sum a_mn exp(j pi ((m - cx) (u - u0) + (n - cy) (v - v0
 
 Cases: 'ideal' (floating point), 'quantized' (phase_bits, gain_bits / gain_step_db), 'quantized+rms' (quantized plus random
 gain / phase errors whose rms depends on the attenuation state of the element, Monte Carlo).
+Optional 4th case 'measured': every element uses the measured gain / phase of the (gain code, phase state) the hardware would be
+set to, taken from a rx_Av_iq_sweep.py csv (cfg.measured_csv); deterministic, no random errors.
 
 Pointing error = peak direction found in the pattern - commanded direction (parabolic peak refinement).
 Peak sidelobe level = highest point outside the main lobe (the region around the peak that falls monotonically to the
@@ -27,7 +29,7 @@ from scipy.ndimage import binary_dilation
 from scipy.signal import windows
 
 TAPERS = ('uniform', 'taylor', 'chebyshev', 'hamming', 'hann', 'blackman', 'cosine', 'gaussian')
-CASES = ('ideal', 'quantized', 'quantized+rms')
+CASES = ('ideal', 'quantized', 'quantized+rms')   # a 4th case, 'measured', is added when a measured sweep csv is given
 
 
 @dataclass
@@ -48,6 +50,7 @@ class ArrayConfig:
     err_phase_rms_deg: list = field(default_factory=lambda: [3, 4, 5, 6, 7, 8, 9])
     nfft: int = 512                    # pattern grid is nfft x nfft over u, v in [-1, 1)
     element_cos_exp: float = 0.0       # element pattern cos(theta)**exp (0 = isotropic)
+    measured_csv: str = ''             # rx_Av_iq_sweep.py csv (sweep 'both'): adds the 'measured' case
 
 
 def steering_list(az_list, el_list):
@@ -78,6 +81,31 @@ def taper_window(cfg, n):
     raise ValueError(f'unknown taper {t}')
 
 
+class MeasuredSweep:
+    """Measured gain / phase of one element for every (gain code, phase state): the csv of rx_Av_iq_sweep.py with sweep = 'both'.
+    Gain is relative to the mean gain at the first gain code, phase is relative to the first gain code / phase state."""
+
+    def __init__(self, csv_path):
+        d = pd.read_csv(csv_path)
+        g = d.pivot(index='g_idx', columns='p_idx', values='Gain dB').sort_index().sort_index(axis=1)
+        p = d.pivot(index='g_idx', columns='p_idx', values='Phase deg').sort_index().sort_index(axis=1)
+        if g.isna().any().any() or p.isna().any().any():
+            raise ValueError('the sweep csv does not cover every gain code / phase state')
+        self.g_codes = g.index.values
+        if not np.all(np.diff(self.g_codes) == 1):
+            raise ValueError('the gain codes of the sweep csv must be consecutive (g step 1)')
+        self.n_states = g.shape[1]                                   # phase states, state s = p_idx - first p_idx
+        self.gain_rel_db = (g - g.iloc[0].mean()).values             # [gain code, phase state]
+        self.phase_deg = p.values
+        self.name = os.path.basename(csv_path)
+
+    def weights(self, phase_deg, att_db, gain_step_db):
+        """Complex weights of elements commanded to phase_deg (any shape) and att_db attenuation (dB)."""
+        gi = np.clip(np.round(att_db / gain_step_db).astype(int), self.g_codes[0], self.g_codes[-1]) - self.g_codes[0]
+        si = np.round((phase_deg % 360) / (360 / self.n_states)).astype(int) % self.n_states
+        return 10 ** (self.gain_rel_db[gi, si] / 20) * np.exp(1j * np.radians(self.phase_deg[gi, si]))
+
+
 class PhasedArray:
     def __init__(self, cfg):
         self.cfg = cfg
@@ -92,6 +120,8 @@ class PhasedArray:
         self.elem = np.where(self.mask, np.sqrt(np.clip(1 - U ** 2 - V ** 2, 0, 1)) ** cfg.element_cos_exp, 0)
         a = np.outer(taper_window(cfg, cfg.ny), taper_window(cfg, cfg.nx))
         self.a_taper = a / a.max()                                                                # strongest element = 0 dB
+        self.measured = MeasuredSweep(cfg.measured_csv) if cfg.measured_csv else None
+        self.cases = CASES + (('measured',) if self.measured else ())
 
     # ---------------- element settings ----------------
     def quantized_attenuation(self):
@@ -107,6 +137,8 @@ class PhasedArray:
         phase = -180 * (self.X * u0 + self.Y * v0)                                                # degrees
         if case == 'ideal':
             return self.a_taper * np.exp(1j * np.radians(phase))
+        if case == 'measured':                       # measured response of the state the hardware would be set to
+            return self.measured.weights(phase, self.quantized_attenuation(), c.gain_step_db)
         phase = np.round((phase % 360) / self.ph_step) * self.ph_step
         att = self.quantized_attenuation()
         amp = 10 ** (-att / 20)
@@ -160,11 +192,11 @@ class PhasedArray:
     def simulate(self, steers, n_trials=200, seed=1, progress=None):
         """Beam errors for every steering angle and case. progress(done, total) is called after every pattern."""
         rng = np.random.default_rng(seed)
-        total = len(steers) * (len(CASES) - 1 + n_trials)
+        total = len(steers) * (len(self.cases) - 1 + n_trials)
         done = 0
         data = {}
         for s, (az0, el0) in enumerate(steers):
-            for case in CASES:
+            for case in self.cases:
                 out = []
                 for _ in range(n_trials if case == 'quantized+rms' else 1):
                     out.append(self.analyze(self.element_weights(az0, el0, case, rng)))
@@ -175,7 +207,7 @@ class PhasedArray:
                 data[case, s] = dict(az_err=np.array([o['az'] - az0 for o in out]), el_err=np.array([o['el'] - el0 for o in out]),
                                      sll=np.array([o['sll'] for o in out]), peak=np.array([o['peak'] for o in out]),
                                      cuts=self.cuts(out[0]['P'], out[0]['i'], out[0]['j'], ref_peak))
-        return BeamResults(list(steers), data, n_trials)
+        return BeamResults(list(steers), data, n_trials, self.cases)
 
     def error_sweep(self, steers, n_trials, seed, phase_rms_deg, gain_rms_db, hold_phase_deg, hold_gain_db, progress=None):
         """Pointing error and sidelobe error vs constant rms gain / phase error (independent of the attenuation state).
@@ -224,13 +256,14 @@ class BeamResults:
     steers: list
     data: dict          # (case, steer index) -> dict of per-trial arrays and pattern cuts
     n_trials: int
+    cases: tuple = CASES
 
     def table(self):
         """One row per steering angle and case."""
         rows = []
         for s, (az0, el0) in enumerate(self.steers):
             ideal = self.data['ideal', s]
-            for case in CASES:
+            for case in self.cases:
                 r = self.data[case, s]
                 row = {'Steer az (deg)': az0, 'Steer el (deg)': el0, 'Case': case}
                 for name, e in (('az', r['az_err']), ('el', r['el_err'])):
@@ -248,7 +281,7 @@ class BeamResults:
         """One row per trial."""
         rows = []
         for s, (az0, el0) in enumerate(self.steers):
-            for case in CASES:
+            for case in self.cases:
                 r = self.data[case, s]
                 for k in range(len(r['sll'])):
                     rows.append({'Steer az (deg)': az0, 'Steer el (deg)': el0, 'Case': case, 'Trial': k,
@@ -260,7 +293,7 @@ class BeamResults:
         """Pattern cuts of steering index s as two DataFrames (azimuth cut, elevation cut), one column per case."""
         az = pd.DataFrame({'Azimuth (deg)': self.data['ideal', s]['cuts']['az_axis']})
         el = pd.DataFrame({'Elevation (deg)': self.data['ideal', s]['cuts']['el_axis']})
-        for case in CASES:
+        for case in self.cases:
             az[case + ' (dB)'] = self.data[case, s]['cuts']['az_db']
             el[case + ' (dB)'] = self.data[case, s]['cuts']['el_db']
         return az, el
@@ -272,7 +305,7 @@ def fig_pattern_cuts(results, s, fig=None, polar=False):
     az0, el0 = results.steers[s]
     if polar:
         ax = fig.subplots(1, 2, subplot_kw={'projection': 'polar'})
-        for case in CASES:
+        for case in results.cases:
             c = results.data[case, s]['cuts']
             ax[0].plot(np.radians(c['az_axis']), c['az_db'], label=case)
             ax[1].plot(np.radians(c['el_axis']), c['el_db'], label=case)
@@ -289,7 +322,7 @@ def fig_pattern_cuts(results, s, fig=None, polar=False):
         fig.tight_layout()
         return fig
     ax = fig.subplots(1, 2)
-    for case in CASES:
+    for case in results.cases:
         c = results.data[case, s]['cuts']
         ax[0].plot(c['az_axis'], c['az_db'], label=case)
         ax[1].plot(c['el_axis'], c['el_db'], label=case)
@@ -308,11 +341,12 @@ def fig_summary(results, fig=None):
     fig = fig or Figure(figsize=(10, 9))
     ax = fig.subplots(3, 1, sharex=True)
     x = np.arange(len(results.steers))
-    for k, case in enumerate(CASES):
-        off = (k - 1) * 0.25
-        ax[0].bar(x + off, [np.sqrt(np.mean(results.data[case, s]['az_err'] ** 2)) for s in x], 0.25, label=case)
-        ax[1].bar(x + off, [np.sqrt(np.mean(results.data[case, s]['el_err'] ** 2)) for s in x], 0.25, label=case)
-        ax[2].bar(x + off, [results.data[case, s]['sll'].mean() for s in x], 0.25, label=case)
+    for k, case in enumerate(results.cases):
+        w = 0.8 / len(results.cases)
+        off = (k - (len(results.cases) - 1) / 2) * w
+        ax[0].bar(x + off, [np.sqrt(np.mean(results.data[case, s]['az_err'] ** 2)) for s in x], w, label=case)
+        ax[1].bar(x + off, [np.sqrt(np.mean(results.data[case, s]['el_err'] ** 2)) for s in x], w, label=case)
+        ax[2].bar(x + off, [results.data[case, s]['sll'].mean() for s in x], w, label=case)
     ax[0].set_ylabel('Azimuth error rms (deg)')
     ax[1].set_ylabel('Elevation error rms (deg)')
     ax[2].set_ylabel('Peak SLL (dBc)')
@@ -383,7 +417,7 @@ def folder_name(cfg, az_list, el_list, n_trials, extra=''):
     name = (f'array_{cfg.nx}x{cfg.ny}__freq_{_tag(cfg.freq_ghz)}GHz__taper_{taper}'
             f'__phase_{_tag(cfg.phase_bits)}b__gain_{cfg.gain_bits}b_{_tag(cfg.gain_step_db)}dB'
             f'__gerr_{_range_tag(cfg.err_gain_rms_db)}dB__perr_{_range_tag(cfg.err_phase_rms_deg)}deg'
-            f'__az_{_range_tag(az_list)}_n{len(az_list)}__el_{_range_tag(el_list)}_n{len(el_list)}__trials_{n_trials}{extra}')
+            f'__az_{_range_tag(az_list)}_n{len(az_list)}__el_{_range_tag(el_list)}_n{len(el_list)}__trials_{n_trials}{extra}' + ('__measured' if cfg.measured_csv else ''))
     return re.sub(r'[<>:"/\\|?*]', '_', name)
 
 
