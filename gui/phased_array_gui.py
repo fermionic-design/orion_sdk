@@ -41,6 +41,7 @@ GROUPS = [
     ('Beam error simulation', [('steer_az', 'Steering azimuths (deg)', '0, 20, 40, 60'), ('steer_el', 'Steering elevations (deg)', '0, 20, 40, 60'),
                                ('n_trials', 'Monte Carlo trials', '200'), ('seed', 'Random seed', '1'),
                                ('nfft', 'FFT size', '512'), ('element_cos_exp', 'Element cos exponent', '0')]),
+    ('Measured sweep (4th mode, optional)', [('measured_csv', 'rx_Av_iq_sweep csv', '')]),
     ('Element maps', [('map_steer', 'Steering angle (deg)', '30')]),
     ('Error sweep', [('sw_az', 'Steering azimuths (deg)', '0, 30'), ('sw_el', 'Steering elevations (deg)', '0, 30'),
                      ('sw_trials', 'Trials per point', '60'), ('sw_phase', 'Phase rms: start, stop, step (deg)', '3, 10, 1'),
@@ -110,6 +111,11 @@ class App(tk.Tk):
                     ttk.Combobox(box, textvariable=var, values=core.TAPERS, state='readonly', width=26).grid(row=r, column=1, padx=4, pady=1)
                 else:
                     ttk.Entry(box, textvariable=var, width=30).grid(row=r, column=1, padx=4, pady=1)
+            if title.startswith('Measured sweep'):
+                row = ttk.Frame(box)
+                row.grid(row=len(fields), column=0, columnspan=2, sticky='w', padx=4, pady=2)
+                ttk.Button(row, text='Browse...', command=self.browse_measured).pack(side='left')
+                ttk.Button(row, text='Clear', command=lambda: self.vars['measured_csv'].set('')).pack(side='left', padx=4)
         bottom = ttk.Frame(left)
         scroll.pack(side='right', fill='y')
         canvas.pack(side='top', fill='both', expand=True)
@@ -164,6 +170,11 @@ class App(tk.Tk):
         self.tabs.add(self.sweep_plot, text='Error sweep')
 
     # ---------------- parameters ----------------
+    def browse_measured(self):
+        path = filedialog.askopenfilename(title='Measured sweep csv (rx_Av_iq_sweep.py, sweep both)', filetypes=[('csv', '*.csv'), ('all files', '*.*')])
+        if path:
+            self.vars['measured_csv'].set(path)
+
     def read_cfg(self):
         v = {k: x.get() for k, x in self.vars.items()}
         return core.ArrayConfig(
@@ -171,7 +182,7 @@ class App(tk.Tk):
             taper_nbar=int(v['taper_nbar']), taper_gauss_sigma=float(v['taper_gauss_sigma']), phase_bits=float(v['phase_bits']),
             gain_bits=int(v['gain_bits']), gain_step_db=float(v['gain_step_db']), err_att_db=parse_list(v['err_att_db']),
             err_gain_rms_db=parse_list(v['err_gain_rms_db']), err_phase_rms_deg=parse_list(v['err_phase_rms_deg']),
-            nfft=int(v['nfft']), element_cos_exp=float(v['element_cos_exp']))
+            nfft=int(v['nfft']), element_cos_exp=float(v['element_cos_exp']), measured_csv=v['measured_csv'].strip())
 
     def _prepare(self):
         """Read the parameters and (re)build the array. Returns False when a value is invalid."""
