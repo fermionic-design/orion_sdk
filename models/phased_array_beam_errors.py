@@ -3,7 +3,9 @@ Beam pointing error (azimuth / elevation) and sidelobe level of a 2D phased arra
 ideal, quantized, quantized + random gain / phase errors. Script front end of phased_array_core.py
 (the GUI is gui/phased_array_gui.py); see phased_array_core.py for the model description.
 """
+import os
 import matplotlib.pyplot as plt
+import numpy as np
 import phased_array_core as core
 
 # ---------------- inputs ----------------
@@ -32,12 +34,17 @@ nfft = 512                         # pattern grid is nfft x nfft over u, v in [-
 element_cos_exp = 0.0              # element pattern cos(theta)**exp (0 = isotropic)
 show_plots = True
 plot_steer = 0                     # index (in the steering list) of the steering shown in the pattern cuts
+# measured sweep (csv of tests/char/rx_Av_iq_sweep.py, sweep = 'both', consecutive gain codes): adds a 4th case, 'measured',
+# where every element uses the measured gain / phase of the gain code and phase state the hardware would be set to
+# (no random errors). Use '' to run only the three modelled cases.
+measured_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tests', 'char', 'logs',
+                            'rx_Av_iq_sweep__v2__ant_sel_1__bias_NOM__sweep_both__g_[0,1,50]__p_[4,1,124]__freq_9p5__2026-10-03_23-25-35.csv')
 map_steer_deg = 30                 # steering angle used for the element phase maps (azimuth-only and elevation-only)
 
 cfg = core.ArrayConfig(freq_ghz=freq_ghz, nx=nx, ny=ny, taper=taper, taper_sll_db=taper_sll_db, taper_nbar=taper_nbar,
                        taper_gauss_sigma=taper_gauss_sigma, phase_bits=phase_bits, gain_bits=gain_bits,
                        gain_step_db=gain_step_db, err_att_db=err_att_db, err_gain_rms_db=err_gain_rms_db,
-                       err_phase_rms_deg=err_phase_rms_deg, nfft=nfft, element_cos_exp=element_cos_exp)
+                       err_phase_rms_deg=err_phase_rms_deg, nfft=nfft, element_cos_exp=element_cos_exp, measured_csv=measured_csv)
 
 if __name__ == '__main__':
     arr = core.PhasedArray(cfg)
@@ -58,8 +65,17 @@ if __name__ == '__main__':
             row += f'{r[n + " err mean (deg)"]:9.3f}{r[n + " err rms (deg)"]:8.3f}{r[n + " err p95 (deg)"]:9.3f}'
         row += f'{r["SLL mean (dBc)"]:10.1f}{r["SLL worst (dBc)"]:10.1f}{r["SLL error mean (dB)"]:13.1f}{r["Peak loss (dB)"]:11.2f}'
         print(row)
-        if r['Case'] == 'quantized+rms':
+        if r['Case'] == res.cases[-1]:
             print()
+
+    print('Comparison over all steering angles:')
+    print(f'{"case":<15}{"pointing rms (deg)":>20}{"max |pointing| (deg)":>22}{"SLL error mean (dB)":>21}{"SLL worst (dBc)":>17}')
+    tab = res.table()
+    for case in res.cases:
+        t = tab[tab['Case'] == case]
+        rms = np.sqrt(np.mean(t['az err rms (deg)'] ** 2 + t['el err rms (deg)'] ** 2))
+        worst = np.max(np.abs(t[['az err mean (deg)', 'el err mean (deg)']].values))
+        print(f'{case:<15}{rms:20.4f}{worst:22.4f}{t["SLL error mean (dB)"].mean():21.2f}{t["SLL worst (dBc)"].max():17.1f}')
 
     if show_plots:
         core.fig_pattern_cuts(res, plot_steer, fig=plt.figure(figsize=(13, 5)))
