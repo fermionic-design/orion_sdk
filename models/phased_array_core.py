@@ -267,10 +267,28 @@ class BeamResults:
 
 
 # ---------------- figures (matplotlib Figure objects, nothing is shown here) ----------------
-def fig_pattern_cuts(results, s, fig=None):
+def fig_pattern_cuts(results, s, fig=None, polar=False):
     fig = fig or Figure(figsize=(13, 5))
-    ax = fig.subplots(1, 2)
     az0, el0 = results.steers[s]
+    if polar:
+        ax = fig.subplots(1, 2, subplot_kw={'projection': 'polar'})
+        for case in CASES:
+            c = results.data[case, s]['cuts']
+            ax[0].plot(np.radians(c['az_axis']), c['az_db'], label=case)
+            ax[1].plot(np.radians(c['el_axis']), c['el_db'], label=case)
+        for a, name in zip(ax, ('azimuth cut', 'elevation cut')):
+            a.set_theta_zero_location('N')
+            a.set_theta_direction(-1)
+            a.set_thetamin(-90)                 # fixed half circle so the plots keep the same size for every cut
+            a.set_thetamax(90)
+            a.set_rlim(-60, 3)
+            a.set_rlabel_position(90)
+            a.grid(True)
+            a.legend(loc='lower left', fontsize=8)
+            a.set_title(f'{name} (dB), steered to az {az0:g}, el {el0:g} deg')
+        fig.tight_layout()
+        return fig
+    ax = fig.subplots(1, 2)
     for case in CASES:
         c = results.data[case, s]['cuts']
         ax[0].plot(c['az_axis'], c['az_db'], label=case)
