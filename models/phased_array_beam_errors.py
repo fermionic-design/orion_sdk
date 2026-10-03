@@ -133,98 +133,99 @@ def analyze(w):
     return dict(az=az, el=el, sll=sll, peak=P[i, j], P=P, i=i, j=j)
 
 
-# ---------------- run ----------------
-steers = [(az, el) for el in steer_el_deg for az in steer_az_deg
-          if np.sin(np.radians(az)) ** 2 * np.cos(np.radians(el)) ** 2 + np.sin(np.radians(el)) ** 2 < 1]
-rng = np.random.default_rng(seed)
-res = {}   # (case, steer index) -> dict of arrays over trials
-total = len(steers) * (len(CASES) - 1 + n_trials)   # patterns to compute
-done = 0
-t_start = time.time()
-for s, (az0, el0) in enumerate(steers):
-    for case in CASES:
-        trials = n_trials if case == 'quantized+rms' else 1
-        out = []
-        for _ in range(trials):
-            out.append(analyze(element_weights(az0, el0, case, rng)))
-            done += 1
-            eta = str(datetime.timedelta(seconds=round((time.time() - t_start) / done * (total - done))))
-            print(f'\r[{"#" * (30 * done // total):<30}] {100 * done // total:3d}%  ({done}/{total})  ETA {eta}', end='', flush=True)
-        res[case, s] = dict(az_err=np.array([o['az'] - az0 for o in out]), el_err=np.array([o['el'] - el0 for o in out]),
-                            sll=np.array([o['sll'] for o in out]), peak=np.array([o['peak'] for o in out]), first=out[0])
+if __name__ == '__main__':
+    # ---------------- run ----------------
+    steers = [(az, el) for el in steer_el_deg for az in steer_az_deg
+              if np.sin(np.radians(az)) ** 2 * np.cos(np.radians(el)) ** 2 + np.sin(np.radians(el)) ** 2 < 1]
+    rng = np.random.default_rng(seed)
+    res = {}   # (case, steer index) -> dict of arrays over trials
+    total = len(steers) * (len(CASES) - 1 + n_trials)   # patterns to compute
+    done = 0
+    t_start = time.time()
+    for s, (az0, el0) in enumerate(steers):
+        for case in CASES:
+            trials = n_trials if case == 'quantized+rms' else 1
+            out = []
+            for _ in range(trials):
+                out.append(analyze(element_weights(az0, el0, case, rng)))
+                done += 1
+                eta = str(datetime.timedelta(seconds=round((time.time() - t_start) / done * (total - done))))
+                print(f'\r[{"#" * (30 * done // total):<30}] {100 * done // total:3d}%  ({done}/{total})  ETA {eta}', end='', flush=True)
+            res[case, s] = dict(az_err=np.array([o['az'] - az0 for o in out]), el_err=np.array([o['el'] - el0 for o in out]),
+                                sll=np.array([o['sll'] for o in out]), peak=np.array([o['peak'] for o in out]), first=out[0])
 
-print('\n')
+    print('\n')
 
-# ---------------- report ----------------
-lam_mm = 299.792458 / freq_ghz
-print(f'{nx} x {ny} elements, {freq_ghz:g} GHz, spacing lambda/2 = {lam_mm / 2:.2f} mm, taper {taper}'
-      + (f' (sll {taper_sll_db:g} dB)' if taper in ('taylor', 'chebyshev') else ''))
-print(f'phase {phase_bits:g} bits ({ph_step:.2f} deg step), gain {gain_bits} bits x {gain_step_db:g} dB (max attenuation {max_att:g} dB), '
-      f'{n_trials} Monte Carlo trials for quantized+rms\n')
-print(f'{"steer az,el":<12}{"case":<15}{"az err (deg)":>26}{"el err (deg)":>26}{"SLL dBc":>20}{"SLL err dB":>13}{"peak loss":>11}')
-print(f'{"":<27}{"mean":>9}{"rms":>8}{"p95":>9}{"mean":>9}{"rms":>8}{"p95":>9}{"mean":>10}{"worst":>10}{"mean":>13}{"dB":>11}')
-for s, (az0, el0) in enumerate(steers):
-    ideal = res['ideal', s]
-    for case in CASES:
-        r = res[case, s]
-        row = f'{az0:>4g},{el0:<7g}{case:<15}'
-        for e in (r['az_err'], r['el_err']):
-            row += f'{e.mean():9.3f}{np.sqrt(np.mean(e ** 2)):8.3f}{np.percentile(np.abs(e), 95):9.3f}'
-        row += f'{r["sll"].mean():10.1f}{r["sll"].max():10.1f}{(r["sll"] - ideal["sll"]).mean():13.1f}'
-        row += f'{(20 * np.log10(r["peak"] / ideal["peak"])).mean():11.2f}'
-        print(row)
-    print()
+    # ---------------- report ----------------
+    lam_mm = 299.792458 / freq_ghz
+    print(f'{nx} x {ny} elements, {freq_ghz:g} GHz, spacing lambda/2 = {lam_mm / 2:.2f} mm, taper {taper}'
+          + (f' (sll {taper_sll_db:g} dB)' if taper in ('taylor', 'chebyshev') else ''))
+    print(f'phase {phase_bits:g} bits ({ph_step:.2f} deg step), gain {gain_bits} bits x {gain_step_db:g} dB (max attenuation {max_att:g} dB), '
+          f'{n_trials} Monte Carlo trials for quantized+rms\n')
+    print(f'{"steer az,el":<12}{"case":<15}{"az err (deg)":>26}{"el err (deg)":>26}{"SLL dBc":>20}{"SLL err dB":>13}{"peak loss":>11}')
+    print(f'{"":<27}{"mean":>9}{"rms":>8}{"p95":>9}{"mean":>9}{"rms":>8}{"p95":>9}{"mean":>10}{"worst":>10}{"mean":>13}{"dB":>11}')
+    for s, (az0, el0) in enumerate(steers):
+        ideal = res['ideal', s]
+        for case in CASES:
+            r = res[case, s]
+            row = f'{az0:>4g},{el0:<7g}{case:<15}'
+            for e in (r['az_err'], r['el_err']):
+                row += f'{e.mean():9.3f}{np.sqrt(np.mean(e ** 2)):8.3f}{np.percentile(np.abs(e), 95):9.3f}'
+            row += f'{r["sll"].mean():10.1f}{r["sll"].max():10.1f}{(r["sll"] - ideal["sll"]).mean():13.1f}'
+            row += f'{(20 * np.log10(r["peak"] / ideal["peak"])).mean():11.2f}'
+            print(row)
+        print()
 
-# ---------------- plots ----------------
-if show_plots:
-    import matplotlib.pyplot as plt
-    az0, el0 = steers[plot_steer]
-    fig, ax = plt.subplots(1, 2, figsize=(13, 5))
-    for case in CASES:
-        o = res[case, plot_steer]['first']
-        P = 20 * np.log10(np.maximum(o['P'], 1e-12) / res['ideal', plot_steer]['peak'])
-        cut_u, cut_v = P[o['i'], :], P[:, o['j']]                      # through the peak
-        v_row = u_grid[o['i']]
-        az_axis = np.degrees(np.arcsin(np.clip(u_grid / np.cos(np.arcsin(v_row)), -1, 1)))
-        ok = np.abs(u_grid / np.cos(np.arcsin(v_row))) < 1
-        ax[0].plot(az_axis[ok], cut_u[ok], label=case)
-        ax[1].plot(np.degrees(np.arcsin(u_grid[mask[:, o['j']]])), cut_v[mask[:, o['j']]], label=case)
-    ax[0].set_xlabel('Azimuth (deg)'); ax[1].set_xlabel('Elevation (deg)')
-    for a, t in zip(ax, ('azimuth cut', 'elevation cut')):
-        a.set_ylabel('Relative power (dB)'); a.set_ylim(-60, 3); a.grid(True); a.legend()
-        a.set_title(f'{t} through the peak, steered to az {az0:g}, el {el0:g} deg ({taper})')
-    fig.tight_layout()
+    # ---------------- plots ----------------
+    if show_plots:
+        import matplotlib.pyplot as plt
+        az0, el0 = steers[plot_steer]
+        fig, ax = plt.subplots(1, 2, figsize=(13, 5))
+        for case in CASES:
+            o = res[case, plot_steer]['first']
+            P = 20 * np.log10(np.maximum(o['P'], 1e-12) / res['ideal', plot_steer]['peak'])
+            cut_u, cut_v = P[o['i'], :], P[:, o['j']]                      # through the peak
+            v_row = u_grid[o['i']]
+            az_axis = np.degrees(np.arcsin(np.clip(u_grid / np.cos(np.arcsin(v_row)), -1, 1)))
+            ok = np.abs(u_grid / np.cos(np.arcsin(v_row))) < 1
+            ax[0].plot(az_axis[ok], cut_u[ok], label=case)
+            ax[1].plot(np.degrees(np.arcsin(u_grid[mask[:, o['j']]])), cut_v[mask[:, o['j']]], label=case)
+        ax[0].set_xlabel('Azimuth (deg)'); ax[1].set_xlabel('Elevation (deg)')
+        for a, t in zip(ax, ('azimuth cut', 'elevation cut')):
+            a.set_ylabel('Relative power (dB)'); a.set_ylim(-60, 3); a.grid(True); a.legend()
+            a.set_title(f'{t} through the peak, steered to az {az0:g}, el {el0:g} deg ({taper})')
+        fig.tight_layout()
 
-    fig, ax = plt.subplots(3, 1, figsize=(10, 9), sharex=True)
-    x = np.arange(len(steers))
-    for k, case in enumerate(CASES):
-        off = (k - 1) * 0.25
-        ax[0].bar(x + off, [np.sqrt(np.mean(res[case, s]['az_err'] ** 2)) for s in x], 0.25, label=case)
-        ax[1].bar(x + off, [np.sqrt(np.mean(res[case, s]['el_err'] ** 2)) for s in x], 0.25, label=case)
-        ax[2].bar(x + off, [res[case, s]['sll'].mean() for s in x], 0.25, label=case)
-    ax[0].set_ylabel('Azimuth error rms (deg)'); ax[1].set_ylabel('Elevation error rms (deg)'); ax[2].set_ylabel('Peak SLL (dBc)')
-    ax[2].set_xticks(x, [f'{a:g},{e:g}' for a, e in steers]); ax[2].set_xlabel('Commanded azimuth, elevation (deg)')
-    for a in ax:
-        a.grid(True, axis='y'); a.legend(fontsize=8)
-    fig.tight_layout()
+        fig, ax = plt.subplots(3, 1, figsize=(10, 9), sharex=True)
+        x = np.arange(len(steers))
+        for k, case in enumerate(CASES):
+            off = (k - 1) * 0.25
+            ax[0].bar(x + off, [np.sqrt(np.mean(res[case, s]['az_err'] ** 2)) for s in x], 0.25, label=case)
+            ax[1].bar(x + off, [np.sqrt(np.mean(res[case, s]['el_err'] ** 2)) for s in x], 0.25, label=case)
+            ax[2].bar(x + off, [res[case, s]['sll'].mean() for s in x], 0.25, label=case)
+        ax[0].set_ylabel('Azimuth error rms (deg)'); ax[1].set_ylabel('Elevation error rms (deg)'); ax[2].set_ylabel('Peak SLL (dBc)')
+        ax[2].set_xticks(x, [f'{a:g},{e:g}' for a, e in steers]); ax[2].set_xlabel('Commanded azimuth, elevation (deg)')
+        for a in ax:
+            a.grid(True, axis='y'); a.legend(fontsize=8)
+        fig.tight_layout()
 
-    # element maps: phase needed to steer map_steer_deg in azimuth / in elevation, and the gain of every element
-    extent = [-cx - 0.5, cx + 0.5, -cy - 0.5, cy + 0.5]   # element position in units of the spacing (lambda/2)
-    fig, ax = plt.subplots(2, 2, figsize=(12, 10))
-    for a, (name, az_s, el_s) in zip(ax[0], ((f'Phase for {map_steer_deg:g} deg azimuth steering', map_steer_deg, 0),
-                                             (f'Phase for {map_steer_deg:g} deg elevation steering', 0, map_steer_deg))):
-        u0, v0 = np.sin(np.radians(az_s)) * np.cos(np.radians(el_s)), np.sin(np.radians(el_s))
-        im = a.imshow((-180 * (X * u0 + Y * v0)) % 360, origin='lower', extent=extent, cmap='twilight', vmin=0, vmax=360)
-        a.set_title(name)
-        fig.colorbar(im, ax=a, label='Phase (deg)')
-    att_q = np.clip(np.round(-20 * np.log10(a_taper) / gain_step_db) * gain_step_db, 0, max_att)
-    for a, (name, g) in zip(ax[1], ((f'Gain, ideal ({taper} taper)', 20 * np.log10(a_taper)),
-                                    (f'Gain, quantized ({gain_step_db:g} dB steps, {gain_bits} bits)', -att_q))):
-        im = a.imshow(g, origin='lower', extent=extent, cmap='viridis', vmin=min(g.min(), -1), vmax=0)
-        a.set_title(name)
-        fig.colorbar(im, ax=a, label='Relative gain (dB)')
-    for a in ax.ravel():
-        a.set_xlabel('x element position (lambda/2)')
-        a.set_ylabel('y element position (lambda/2)')
-    fig.tight_layout()
-    plt.show()
+        # element maps: phase needed to steer map_steer_deg in azimuth / in elevation, and the gain of every element
+        extent = [-cx - 0.5, cx + 0.5, -cy - 0.5, cy + 0.5]   # element position in units of the spacing (lambda/2)
+        fig, ax = plt.subplots(2, 2, figsize=(12, 10))
+        for a, (name, az_s, el_s) in zip(ax[0], ((f'Phase for {map_steer_deg:g} deg azimuth steering', map_steer_deg, 0),
+                                                 (f'Phase for {map_steer_deg:g} deg elevation steering', 0, map_steer_deg))):
+            u0, v0 = np.sin(np.radians(az_s)) * np.cos(np.radians(el_s)), np.sin(np.radians(el_s))
+            im = a.imshow((-180 * (X * u0 + Y * v0)) % 360, origin='lower', extent=extent, cmap='twilight', vmin=0, vmax=360)
+            a.set_title(name)
+            fig.colorbar(im, ax=a, label='Phase (deg)')
+        att_q = np.clip(np.round(-20 * np.log10(a_taper) / gain_step_db) * gain_step_db, 0, max_att)
+        for a, (name, g) in zip(ax[1], ((f'Gain, ideal ({taper} taper)', 20 * np.log10(a_taper)),
+                                        (f'Gain, quantized ({gain_step_db:g} dB steps, {gain_bits} bits)', -att_q))):
+            im = a.imshow(g, origin='lower', extent=extent, cmap='viridis', vmin=min(g.min(), -1), vmax=0)
+            a.set_title(name)
+            fig.colorbar(im, ax=a, label='Relative gain (dB)')
+        for a in ax.ravel():
+            a.set_xlabel('x element position (lambda/2)')
+            a.set_ylabel('y element position (lambda/2)')
+        fig.tight_layout()
+        plt.show()
