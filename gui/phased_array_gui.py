@@ -140,10 +140,19 @@ class App(tk.Tk):
         cuts_tab = ttk.Frame(self.tabs)
         top = ttk.Frame(cuts_tab)
         top.pack(fill='x')
-        ttk.Label(top, text='Steering (az, el):').pack(side='left', padx=4, pady=4)
-        self.cut_choice = ttk.Combobox(top, state='readonly', width=14)
-        self.cut_choice.pack(side='left')
-        self.cut_choice.bind('<<ComboboxSelected>>', lambda e: self._draw_cuts())
+        top.columnconfigure(1, weight=1)
+        self.cut_axes = {}                      # 'az' / 'el' -> dict(values, scale, label)
+        for r, (key, text) in enumerate((('az', 'Azimuth'), ('el', 'Elevation'))):
+            ttk.Label(top, text=text + ':').grid(row=r, column=0, sticky='w', padx=4, pady=2)
+            scale = ttk.Scale(top, from_=0, to=0, orient='horizontal', command=lambda v, k=key: self._on_cut_slider(k, v))
+            scale.grid(row=r, column=1, sticky='ew', padx=4)
+            label = ttk.Label(top, text='-', width=10)
+            label.grid(row=r, column=2, padx=4)
+            self.cut_axes[key] = dict(values=[], scale=scale, label=label)
+        self.cut_polar = tk.BooleanVar(value=False)
+        ttk.Checkbutton(top, text='Polar plot', variable=self.cut_polar, command=self._draw_cuts).grid(row=2, column=0, columnspan=2, sticky='w', padx=4)
+        self.cut_note = ttk.Label(top, text='')
+        self.cut_note.grid(row=3, column=0, columnspan=3, sticky='w', padx=4)
         self.cuts_plot = PlotTab(cuts_tab)
         self.cuts_plot.pack(fill='both', expand=True)
         self.tabs.add(cuts_tab, text='Pattern cuts')
@@ -241,8 +250,7 @@ class App(tk.Tk):
         def done(res):
             self.results = res
             self._fill_table(res.table())
-            self.cut_choice['values'] = [f'{a:g}, {e:g}' for a, e in res.steers]
-            self.cut_choice.current(0)
+            self._setup_cut_sliders(res)
             self._draw_cuts()
             self.summary_plot.show(lambda fig: core.fig_summary(res, fig=fig))
             if then:
@@ -301,10 +309,47 @@ class App(tk.Tk):
         for _, row in df.iterrows():
             self.tree.insert('', 'end', values=[f'{x:.4f}' if isinstance(x, float) else x for x in row])
 
+    def _setup_cut_sliders(self, res):
+        """The sliders step through the simulated azimuths / elevations."""
+        for i, key in enumerate(('az', 'el')):      # set both value lists first: moving a slider triggers a redraw
+            self.cut_axes[key]['values'] = sorted({s[i] for s in res.steers})
+        for key in ('az', 'el'):
+            ax = self.cut_axes[key]
+            ax['scale'].configure(to=max(len(ax['values']) - 1, 0))
+            ax['scale'].set(0)
+            ax['label'].configure(text=f"{ax['values'][0]:g} deg")
+
+    def _cut_index(self):
+        """Index into results.steers for the slider positions, or None when that combination was not simulated."""
+        pick = []
+        for key in ('az', 'el'):
+            ax = self.cut_axes[key]
+            pick.append(ax['values'][min(int(round(float(ax['scale'].get()))), len(ax['values']) - 1)])
+        try:
+            return self.results.steers.index(tuple(pick))
+        except ValueError:
+            return None
+
+    def _on_cut_slider(self, key, value):
+        ax = self.cut_axes[key]
+        if not ax['values']:
+            return
+        i = min(int(round(float(value))), len(ax['values']) - 1)
+        ax['label'].configure(text=f"{ax['values'][i]:g} deg")
+        if abs(float(value) - i) > 1e-9:
+            ax['scale'].set(i)                  # snap to the simulated value (re-enters this callback)
+            return
+        self._draw_cuts()
+
     def _draw_cuts(self):
-        if self.results is not None and self.cut_choice.current() >= 0:
-            s = self.cut_choice.current()
-            self.cuts_plot.show(lambda fig: core.fig_pattern_cuts(self.results, s, fig=fig))
+        if self.results is None or not all(self.cut_axes[k]['values'] for k in ('az', 'el')):
+            return
+        s = self._cut_index()
+        if s is None:
+            self.cut_note.configure(text='This azimuth / elevation combination is outside the visible region (not simulated).')
+            return
+        self.cut_note.configure(text='')
+        self.cuts_plot.show(lambda fig: core.fig_pattern_cuts(self.results, s, fig=fig, polar=self.cut_polar.get()))
 
     # ---------------- save ----------------
     def save(self, base_dir=None):
