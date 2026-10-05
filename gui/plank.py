@@ -10,7 +10,12 @@ from ORION_8G_12G_hal import *
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
+from tkinter import messagebox
 import csv
+import queue
+import re
+import threading
+import serial.tools.list_ports
 
 class App(tk.Tk):
     def __init__(self):
@@ -26,19 +31,22 @@ class App(tk.Tk):
         self._create_tabs()
         self._create_status_bar()
 
-        self.spi = SPI()
-        self.orion_bdst = ORION_8G_12G(self.spi, 0, 1)
-        self.orion_lut_bdst = ORION_8G_12G_lut(self.spi)
+        self.spi = None  # opened by Connect, closed by Disconnect
+        self.orion_bdst = None
+        self.orion_lut_bdst = None
+        self.hal_bdst = None
         self.device_count = 0x20  # Scans from 0x00 to 0x1F (32 addresses)
         self.dev_addr = []
         self.dev_csr = []
         self.dev_lut = []
         self.dev_hal = []
 
-        self.hal_bdst = ORION_8G_12G_hal(self.orion_bdst, self.orion_lut_bdst, self.spi, version)
-
         self.cfg_path = ''
         self.cal_path = ''
+
+        self._connect_queue = queue.Queue()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.on_scan_ports()
 
     # =========================
     # Layout
@@ -49,6 +57,138 @@ class App(tk.Tk):
 
         self.container = ttk.Frame(self, padding=5)
         self.container.grid(row=0, column=0, sticky="nsew")
+
+        self._create_connection_bar()
+
+    # =========================
+    # Connection (SPI port)
+    # =========================
+    def _create_connection_bar(self):
+        bar = ttk.Frame(self.container)
+        bar.pack(side="top", fill="x", pady=(0, 5))
+
+        ttk.Label(bar, text="PORT").pack(side="left", padx=(0, 5))
+        self.port_combo = ttk.Combobox(bar, state="readonly", width=40)
+        self.port_combo.pack(side="left", padx=5)
+        self.btn_connect = ttk.Button(bar, text="Connect", command=self.on_connect)
+        self.btn_connect.pack(side="left", padx=5)
+        self.btn_disconnect = ttk.Button(bar, text="Disconnect", command=self.on_disconnect, state="disabled")
+        self.btn_disconnect.pack(side="left", padx=5)
+        self.btn_scan = ttk.Button(bar, text="Scan", command=self.on_scan_ports)
+        self.btn_scan.pack(side="left", padx=5)
+
+        self.conn_var = tk.StringVar(value="Disconnected")
+        ttk.Label(bar, textvariable=self.conn_var, font=("Arial", 10, "bold")).pack(side="left", padx=15)
+
+    def on_scan_ports(self):
+        ports = [p for p in serial.tools.list_ports.comports() if "USB" in p.hwid]
+        for p in ports:
+            print(f"[{p.device}] {p.description} [{p.hwid}]")
+        if not ports:
+            print("No USB COM ports available.")
+
+        values = [str(p) for p in ports]
+        current = self.port_combo.get()
+        self.port_combo["values"] = values
+        if current in values:
+            self.port_combo.set(current)  # keep the selection if the port is still there
+        elif values:
+            self.port_combo.current(0)
+        else:
+            self.port_combo.set("")
+        if hasattr(self, "status_var"):
+            self.status_var.set(f"{len(values)} USB port(s) found")
+
+    def _set_conn_buttons(self, connected=False, connecting=False):
+        self.btn_connect.config(state="disabled" if connected or connecting else "normal")
+        self.btn_disconnect.config(state="normal" if connected else "disabled")
+        self.btn_scan.config(state="disabled" if connecting else "normal")
+
+    def on_connect(self):
+        match = re.search(r'\b(COM\d+)\b', self.port_combo.get())
+        if not match:
+            self.status_var.set("No port selected: press Scan and pick a port")
+            return
+        port = match.group(1)
+
+        if self.spi is not None:
+            self.on_disconnect()  # release the port of the previous connection first
+
+        self._set_conn_buttons(connecting=True)
+        self.conn_var.set(f"Connecting @ {port}...")
+        self.status_var.set(f"Connecting @ {port}...")
+
+        def work():  # SPI() waits 1 s, so it runs in a thread to keep the window responsive
+            try:
+                self._connect_queue.put(("ok", port, SPI(port)))
+            except Exception as e:
+                self._connect_queue.put(("error", port, e))
+
+        threading.Thread(target=work, daemon=True).start()
+        self.after(100, self._poll_connect)
+
+    def _poll_connect(self):
+        try:
+            kind, port, result = self._connect_queue.get_nowait()
+        except queue.Empty:
+            self.after(100, self._poll_connect)
+            return
+
+        if kind == "error":
+            self.conn_var.set("Disconnected")
+            self.status_var.set(f"Connect failed @ {port}: {result}")
+            self._set_conn_buttons(connected=False)
+            messagebox.showerror("Connect failed", f"Could not open {port}:\n{result}")
+            return
+
+        self.spi = result
+        self.orion_bdst = ORION_8G_12G(self.spi, 0, 1)
+        self.orion_lut_bdst = ORION_8G_12G_lut(self.spi)
+        self.hal_bdst = ORION_8G_12G_hal(self.orion_bdst, self.orion_lut_bdst, self.spi, version)
+        self._create_devices()  # a plank loaded before connecting
+        self.conn_var.set(f"Connected @ {port}")
+        self.status_var.set(f"Connected @ {port}")
+        self._set_conn_buttons(connected=True)
+
+    def on_disconnect(self):
+        if self.spi is None:
+            self.status_var.set("Not connected")
+            return
+        try:
+            self.spi.close()
+        except Exception as e:
+            print(f"Error while closing SPI: {e}")
+        self.spi = None
+        self.orion_bdst = None
+        self.orion_lut_bdst = None
+        self.hal_bdst = None
+        self.dev_csr, self.dev_lut, self.dev_hal = [], [], []  # these held the closed port
+        self.conn_var.set("Disconnected")
+        self.status_var.set("Disconnected")
+        self._set_conn_buttons(connected=False)
+
+    def _connected(self):
+        if self.spi is None:
+            self.status_var.set("Not connected: connect to a port first")
+            return False
+        return True
+
+    def _create_devices(self):
+        """(Re)create the objects of the loaded plank's devices on the current SPI connection."""
+        self.dev_csr, self.dev_lut, self.dev_hal = [], [], []
+        if self.spi is None:
+            return
+        for addr in self.dev_addr:
+            dev_csr = ORION_8G_12G(self.spi, addr, 0)
+            dev_lut = ORION_8G_12G_lut(self.spi, addr, 0)
+            dev_hal = ORION_8G_12G_hal(dev_csr, dev_lut, self.spi, version)
+            self.dev_csr.append(dev_csr)
+            self.dev_lut.append(dev_lut)
+            self.dev_hal.append(dev_hal)
+
+    def _on_close(self):
+        self.on_disconnect()  # releases the COM port
+        self.destroy()
 
     # =========================
     # Tabs
@@ -213,6 +353,8 @@ class App(tk.Tk):
         print(f"Element {element_id} {'selected' if selected else 'deselected'}")
         entry = next(e for e in self.mapping["list"] if e["element_id"] == element_id)
         print(entry)
+        if not self._connected():
+            return
         for addr in self.dev_addr:
             ch_en = 0
             for e in self.mapping["list"]:
@@ -243,7 +385,7 @@ class App(tk.Tk):
         self.element_controls[element_id][field_name].set(value)
         self.status_var.set(f"E{element_id} {field_name} → {value}")
 
-        if(field_name == "bias"):
+        if(field_name == "bias" and self.spi is not None):
             addr = self.mapping["list"][element_id]["bfm_id"]
             ch_id = self.mapping["list"][element_id]["ch_id"]
             lna_sel = 1 << ch_id
@@ -251,6 +393,8 @@ class App(tk.Tk):
             print(f'Updated Device {hex(addr)} Channel {ch_id} Bias to {value}')
 
     def on_sanity(self):
+        if not self._connected():
+            return
         self.status_var.set("Sanity check")
         dev_addr = []
         print("Scanning for ORION devices at hex addresses 0x00 to 0x1F...")
@@ -287,23 +431,20 @@ class App(tk.Tk):
         self.cal_path = self.cfg_path.replace(".cfg", ".cal")
 
         self.mapping = self.load_element_map(self.cfg_path)
+        self.dev_addr = []
         for entry in self.mapping["list"]:
             print(f"E{entry['element_id']}: BFM={hex(entry['bfm_id'])}, CH={entry['ch_id']}")
             self.dev_addr.append(entry["bfm_id"])
         self.dev_addr = list(dict.fromkeys(self.dev_addr))
         print(self.dev_addr)
-        for addr in self.dev_addr:
-            dev_csr = ORION_8G_12G(self.spi, addr, 0)
-            dev_lut = ORION_8G_12G_lut(self.spi, addr, 0)
-            dev_hal = ORION_8G_12G_hal(dev_csr, dev_lut, self.spi, version)
-            self.dev_csr.append(dev_csr)
-            self.dev_lut.append(dev_lut)
-            self.dev_hal.append(dev_hal)
+        self._create_devices()
         print(self.dev_hal)
         self.populate_calibration_table()
-        self.status_var.set("Plank loaded")
+        self.status_var.set("Plank loaded" if self.spi is not None else "Plank loaded (not connected: connect to apply)")
 
     def on_init_plank(self):
+        if not self._connected():
+            return
         # Write DACs and reset TR configs via broadcast
         self.hal_bdst.dac_cfg(pa_sel=0xF, lna_sel=0xF)
 
@@ -367,6 +508,8 @@ class App(tk.Tk):
             self.status_var.set("Load failed")
 
     def on_reset(self):
+        if not self._connected():
+            return
         self.orion_bdst.SYNC_RST.sync_rst = 1
         self.orion_bdst.SYNC_RST.write()
         self.orion_bdst.SYNC_RST.sync_rst = 0
