@@ -9,7 +9,7 @@ INIT_PA_BIAS = 0 if version == 'v2' else 127
 
 # Bias DAC codes of the two fixed bias voltages
 LNA_BIAS_M2P5 = 40                             # LNA bias of -2.5 V
-PA_BIAS_M3P3 = 60 if version == 'v1' else 20   # PA bias of -3.3 V
+PA_BIAS_M3P3 = 20 if version == 'v1' else 60   # PA bias of -3.3 V
 import sys
 sys.path.append('../include')
 
@@ -618,6 +618,7 @@ class App(tk.Tk):
         self.hal_bdst.set_freq('9G')
         self.hal_bdst.enable_rx_correction(1)
         self.hal_bdst.en_data_path(1)
+        self.spi.pa_set()
 
     def _write_bias(self, hal, lna=None, pa=None, ch_mask=0xF):
         """Write the LNA / PA bias DACs shown in the table for the channels in ch_mask. The _PDN DACs are not written
