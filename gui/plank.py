@@ -1,12 +1,11 @@
 version = 'v2'
 
-# The table shows (and the GUI edits) only the active LNA / PA bias DACs (DAC_CTRL_LNAx / DAC_CTRL_PAx), not the _PDN ones.
-# Only Init Plank writes the _PDN DACs: it initializes everything, with the dac_cfg defaults of the HAL
-# (LNA 127, PA 0 for v2 / 127 for v1). Spin box edits and Program Defaults leave the _PDN DACs alone.
+# The table shows (and the table edits, Program Defaults and Load Cal write) only the active LNA / PA bias DACs
+# (DAC_CTRL_LNAx / DAC_CTRL_PAx), not the _PDN ones.
+# Init Plank is unchanged: it calls dac_cfg with its defaults (LNA 127, PA 0 for v2 / 127 for v1; the _PDN DACs too).
+# These two constants are those defaults, only used to show the values in the table after Init Plank.
 INIT_LNA_BIAS = 127
 INIT_PA_BIAS = 0 if version == 'v2' else 127
-INIT_LNA_PDN_BIAS = 127
-INIT_PA_PDN_BIAS = 0 if version == 'v2' else 127
 
 # Bias DAC codes of the two fixed bias voltages
 LNA_BIAS_M2P5 = 0                              # LNA bias of -2.5 V
@@ -412,8 +411,8 @@ class App(tk.Tk):
                 if e["bfm_id"] == addr and self.element_controls[e["element_id"]]["selected"].get():
                     ch_en |= (1 << e["ch_id"])
             print(ch_en)
-            self.dev_hal[addr].set_tr_mask(tx_mask=ch_en, rx_mask=ch_en)
-            self.dev_hal[addr].stg2_load()
+            self._hal_for(addr).set_tr_mask(tx_mask=ch_en, rx_mask=ch_en)
+            self._hal_for(addr).stg2_load()
 
 
     def select_all_elements(self, value=True):
@@ -462,9 +461,9 @@ class App(tk.Tk):
             addr = self.mapping["list"][element_id]["bfm_id"]
             ch_id = self.mapping["list"][element_id]["ch_id"]
             if field_name == "bias":
-                self._write_bias(self.dev_hal[addr], lna=value, ch_mask=1 << ch_id)
+                self._write_bias(self._hal_for(addr), lna=value, ch_mask=1 << ch_id)
             else:
-                self._write_bias(self.dev_hal[addr], pa=value, ch_mask=1 << ch_id)
+                self._write_bias(self._hal_for(addr), pa=value, ch_mask=1 << ch_id)
             print(f'Updated Device {hex(addr)} Channel {ch_id} {"LNA" if field_name == "bias" else "PA"} Bias to {value}')
 
     def _scan_devices(self):
@@ -551,10 +550,8 @@ class App(tk.Tk):
         if not self._connected():
             return
         # Write DACs and reset TR configs via broadcast
-        self.hal_bdst.dac_cfg(pa_sel=0xF, lna_sel=0xF,
-                              **{f'PA{i}': INIT_PA_BIAS for i in range(4)}, **{f'LNA{i}': INIT_LNA_BIAS for i in range(4)},
-                              **{f'PA{i}_PDN': INIT_PA_PDN_BIAS for i in range(4)}, **{f'LNA{i}_PDN': INIT_LNA_PDN_BIAS for i in range(4)})
-        self._show_bias(INIT_LNA_BIAS, INIT_PA_BIAS)
+        self.hal_bdst.dac_cfg(pa_sel=0xF, lna_sel=0xF)
+        self._show_bias(INIT_LNA_BIAS, INIT_PA_BIAS)  # show the defaults that dac_cfg just programmed
 
         # Setting data path and tx and rx mask to 0 for safety
         self.hal_bdst.en_data_path(0)
@@ -646,27 +643,71 @@ class App(tk.Tk):
 
         self.status_var.set("Saved")
 
+    def _hal_for(self, addr):
+        return self.dev_hal[self.dev_addr.index(addr)]
+
+    def _read_cal(self, cal_path):
+        """Rows of a .cal file: element id and the bias / gain / phase values (None for a value the file does not have)."""
+        rows = []
+        with open(cal_path) as f:
+            for row in csv.DictReader(f):
+                # older cal files call the LNA bias "bias", have one gain / phase for RX and TX, and may not have pa_bias
+                get = lambda name, old=None: row.get(name) or (row.get(old) if old else None)
+                rows.append({
+                    "element_id": int(row["element_id"]),
+                    "bias": int(get("lna_bias", "bias")),
+                    "pa_bias": int(row["pa_bias"]) if row.get("pa_bias") else None,
+                    "rx_gain": int(get("rx_gain", "gain")), "tx_gain": int(get("tx_gain", "gain")),
+                    "rx_phase": int(get("rx_phase", "phase")), "tx_phase": int(get("tx_phase", "phase")),
+                })
+        return rows
+
+    def _program_all(self):
+        """Write the bias DACs and the RX / TX gain and phase codes of every element of the table into the devices."""
+        for entry in self.mapping["list"]:
+            c = self.element_controls[entry["element_id"]]
+            hal = self._hal_for(entry["bfm_id"])
+            ch = 1 << entry["ch_id"]
+            self._write_bias(hal, lna=c["bias"].get(), pa=c["pa_bias"].get(), ch_mask=ch)
+            hal.set_lut_idx(c["rx_phase"].get(), c["rx_gain"].get(), ch, mode="RX")
+            hal.set_lut_idx(c["tx_phase"].get(), c["tx_gain"].get(), ch, mode="TX")
+        for addr in self.dev_addr:
+            self._hal_for(addr).stg2_load()
+
     def on_load_cal(self):
         try:
-            with open(self.cal_path) as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    eid = int(row["element_id"])
-                    c = self.element_controls[eid]
+            rows = self._read_cal(self.cal_path)
+            unknown = [r["element_id"] for r in rows if r["element_id"] not in self.element_controls]
+            if unknown:
+                raise ValueError(f"elements {unknown} are not in the loaded plank cfg")
+        except Exception as e:
+            print(f"Load cal failed: {e}")
+            self.status_var.set(f"Load failed: {e}")
+            return
 
-                    # older cal files call the LNA bias "bias" and may not have pa_bias
-                    c["cal_bias"].set(int(row["lna_bias"] if "lna_bias" in row else row["bias"]))
-                    if row.get("pa_bias"):
-                        c["cal_pa_bias"].set(int(row["pa_bias"]))
-                    # older cal files have one gain and one phase: they apply to both RX and TX
-                    for name in ("gain", "phase"):
-                        for trx in ("rx", "tx"):
-                            c[f"cal_{trx}_{name}"].set(int(row.get(f"{trx}_{name}") or row[name]))
+        # fill the cal columns and the table (the DACs and codes are written below, not field by field)
+        self._syncing = True
+        try:
+            for r in rows:
+                c = self.element_controls[r["element_id"]]
+                c["cal_bias"].set(r["bias"]); c["bias"].set(r["bias"])
+                if r["pa_bias"] is not None:
+                    c["cal_pa_bias"].set(r["pa_bias"]); c["pa_bias"].set(r["pa_bias"])
+                for name in ("rx_gain", "tx_gain", "rx_phase", "tx_phase"):
+                    c[f"cal_{name}"].set(r[name]); c[name].set(r[name])
+        finally:
+            self._syncing = False
 
-            self.status_var.set("Loaded cal")
-
-        except:
-            self.status_var.set("Load failed")
+        if self.spi is None:
+            self.status_var.set("Loaded cal into the table (not connected: devices not programmed)")
+            return
+        try:
+            self._program_all()
+        except Exception as e:
+            print(f"Programming failed: {e}")
+            self.status_var.set(f"Loaded cal, but programming the devices failed: {e}")
+            return
+        self.status_var.set(f"Loaded cal and programmed {len(rows)} element(s)")
 
     def on_reset(self):
         if not self._connected():
