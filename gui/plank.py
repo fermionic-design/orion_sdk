@@ -8,7 +8,7 @@ INIT_LNA_BIAS = 127
 INIT_PA_BIAS = 0 if version == 'v2' else 127
 
 # Bias DAC codes of the two fixed bias voltages
-LNA_BIAS_M2P5 = 0                              # LNA bias of -2.5 V
+LNA_BIAS_M2P5 = 40                             # LNA bias of -2.5 V
 PA_BIAS_M3P3 = 60 if version == 'v1' else 20   # PA bias of -3.3 V
 import sys
 sys.path.append('../include')
@@ -54,7 +54,6 @@ class App(tk.Tk):
         self.dev_hal = []
 
         self.cfg_path = ''
-        self.cal_path = ''
 
         self._connect_queue = queue.Queue()
         self._bulk_select = False  # True while Select All / Deselect All changes many elements (masks are applied once at the end)
@@ -88,7 +87,7 @@ class App(tk.Tk):
         self.btn_connect.pack(side="left", padx=5)
         self.btn_disconnect = ttk.Button(bar, text="Disconnect", command=self.on_disconnect, state="disabled")
         self.btn_disconnect.pack(side="left", padx=5)
-        self.btn_scan = ttk.Button(bar, text="Scan", command=self.on_scan_ports)
+        self.btn_scan = ttk.Button(bar, text="Scan COM Ports", command=self.on_scan_ports)
         self.btn_scan.pack(side="left", padx=5)
 
         self.conn_var = tk.StringVar(value="Disconnected")
@@ -121,7 +120,7 @@ class App(tk.Tk):
     def on_connect(self):
         match = re.search(r'\b(COM\d+)\b', self.port_combo.get())
         if not match:
-            self.status_var.set("No port selected: press Scan and pick a port")
+            self.status_var.set("No port selected: press Scan COM Ports and pick a port")
             return
         port = match.group(1)
 
@@ -239,6 +238,10 @@ class App(tk.Tk):
         ttk.Button(self.calib_sidebar, text="Load Plank Cfg", command=self.on_load_plank).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Init Plank", command=self.on_init_plank).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Program Defaults", command=self.on_program_defaults).pack(fill="x", pady=5)
+        ttk.Label(self.calib_sidebar, text="Cal file:").pack(anchor="w", pady=(10, 0))
+        self.cal_path_var = tk.StringVar()
+        ttk.Entry(self.calib_sidebar, textvariable=self.cal_path_var).pack(fill="x", pady=(0, 2))
+        ttk.Button(self.calib_sidebar, text="Browse Cal File", command=self.on_browse_cal).pack(fill="x", pady=(0, 5))
         ttk.Button(self.calib_sidebar, text="Save Cal", command=self.on_save_cal).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Load Cal", command=self.on_load_cal).pack(fill="x", pady=5)
         ttk.Button(self.calib_sidebar, text="Reset Plank", command=self.on_reset).pack(fill="x", pady=5)
@@ -247,8 +250,8 @@ class App(tk.Tk):
         ttk.Label(self.calib_sidebar, text="TR Mode:").pack(anchor="w", pady=(0, 5))
 
         self.tr_mode = tk.StringVar(value="RX")  # default
-        # the Bias / Gain / Phase columns of the table follow the TR mode (RX or TX values)
-        self.tr_mode.trace_add("write", lambda *args: self._refresh_mode_view())
+        # the Bias / Gain / Phase columns of the table follow the TR mode (RX or TX values) and the devices are set to it
+        self.tr_mode.trace_add("write", lambda *args: self._on_tr_mode_change())
 
         ttk.Radiobutton(
             self.calib_sidebar,
@@ -345,6 +348,22 @@ class App(tk.Tk):
         rx_key, tx_key = self.MODE_FIELDS[field]
         key = rx_key if self.tr_mode.get() == "RX" else tx_key
         return ("cal_" + key) if cal else key
+
+    def _on_tr_mode_change(self):
+        """TX / RX radio button: show the values of that mode and program the devices with set_trx_mode (RX = 0, TX = 1)."""
+        self._refresh_mode_view()
+        trx = 1 if self.tr_mode.get() == "TX" else 0
+        if self.spi is None:
+            self.status_var.set(f"TR mode {self.tr_mode.get()} selected (not connected: devices not programmed)")
+            return
+        try:
+            self.hal_bdst.set_trx_mode(trx)
+        except Exception as e:
+            self.status_var.set(f"Setting the TRX mode failed: {e}")
+            messagebox.showerror("TR mode", f"Could not set the TRX mode of the devices:\n{e}")
+            return
+        self.status_var.set(f"TR mode {self.tr_mode.get()}: devices programmed with set_trx_mode({trx}). "
+                            f"Bias is the {'PA' if trx else 'LNA'} bias, Gain and Phase are the {self.tr_mode.get()} values")
 
     def _refresh_mode_view(self):
         """Point the Bias / Gain / Phase columns of every element at the RX values (RX mode) or the TX values (TX mode)."""
@@ -500,7 +519,7 @@ class App(tk.Tk):
         status_var = f"Sanity: {len(dev_addr)} devices found at " + ", ".join([f"0x{addr:02X}" for addr in dev_addr])
         self.status_var.set(status_var)
 
-    def on_load_plank(self, path=None):
+    def on_load_plank(self, path=None, keep_cal_path=False):
         if(path is None):
             cfg_path = filedialog.askopenfilename(filetypes=[("Config files", "*.cfg"), ("All files", "*.*")])
             if not cfg_path:
@@ -531,8 +550,12 @@ class App(tk.Tk):
             messagebox.showerror("Plank cfg mismatch", "\n".join(lines))
             return
 
+        # default cal file: same folder and name as the cfg, shown in the Cal file box (it can be changed there).
+        # Loading a cfg always replaces what is in the box; only Reset Plank (keep_cal_path) keeps the path that is there.
+        default_cal = os.path.splitext(cfg_path)[0] + ".cal"
+        if not keep_cal_path or not self.cal_path_var.get().strip():
+            self.cal_path_var.set(default_cal)
         self.cfg_path = cfg_path
-        self.cal_path = self.cfg_path.replace(".cfg", ".cal")
 
         self.mapping = mapping
         self.dev_addr = []
@@ -544,7 +567,9 @@ class App(tk.Tk):
         self._create_devices()
         print(self.dev_hal)
         self.populate_calibration_table()
-        self.status_var.set(f"Plank cfg loaded successfully: {len(expected)} beamformer(s) match {os.path.basename(self.cfg_path)}")
+        cal_path = self.cal_path_var.get().strip()
+        self.status_var.set(f"Plank cfg loaded successfully: {len(expected)} beamformer(s) match {os.path.basename(self.cfg_path)}. "
+                            f"Cal file: {os.path.basename(cal_path)} ({'found' if os.path.isfile(cal_path) else 'does not exist yet'})")
 
     def on_init_plank(self):
         if not self._connected():
@@ -589,7 +614,8 @@ class App(tk.Tk):
         self.hal_bdst.set_tr_mode('INT_TR')
         self.hal_bdst.set_trx_mode(0)
         self.hal_bdst.init_rx('NOM')
-        self.hal_bdst.set_freq('11G')
+        self.hal_bdst.init_tx('MAX')
+        self.hal_bdst.set_freq('9G')
         self.hal_bdst.enable_rx_correction(1)
         self.hal_bdst.en_data_path(1)
 
@@ -620,28 +646,52 @@ class App(tk.Tk):
         finally:
             self._syncing = False
 
+    def on_browse_cal(self):
+        # a save dialog without the overwrite question: it can pick an existing cal file or name a new one
+        path = filedialog.asksaveasfilename(title="Cal file", defaultextension=".cal", confirmoverwrite=False,
+                                            filetypes=[("Cal files", "*.cal"), ("All files", "*.*")])
+        if path:
+            self.cal_path_var.set(path)
+
     def on_save_cal(self):
-        with open(self.cal_path, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["element_id", "bfm_id", "ch_id", "lna_bias", "pa_bias", "rx_gain", "tx_gain", "rx_phase", "tx_phase"])
+        cal_path = self.cal_path_var.get().strip()
+        if not cal_path:
+            messagebox.showerror("Save Cal", "No cal file selected.\n\nEnter a path or use Browse Cal File.")
+            return
+        if getattr(self, "mapping", None) is None:
+            self.status_var.set("Load a plank cfg first")
+            return
+        existed = os.path.exists(cal_path)
+        try:
+            with open(cal_path, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["element_id", "bfm_id", "ch_id", "lna_bias", "pa_bias", "rx_gain", "tx_gain", "rx_phase", "tx_phase"])
 
-            for entry in self.mapping["list"]:
-                eid = entry["element_id"]
-                c = self.element_controls[eid]
+                for entry in self.mapping["list"]:
+                    eid = entry["element_id"]
+                    c = self.element_controls[eid]
 
-                writer.writerow([
-                    eid,
-                    hex(entry["bfm_id"]),
-                    entry["ch_id"],
-                    c["bias"].get(),
-                    c["pa_bias"].get(),
-                    c["rx_gain"].get(),
-                    c["tx_gain"].get(),
-                    c["rx_phase"].get(),
-                    c["tx_phase"].get()
-                ])
+                    writer.writerow([
+                        eid,
+                        hex(entry["bfm_id"]),
+                        entry["ch_id"],
+                        c["bias"].get(),
+                        c["pa_bias"].get(),
+                        c["rx_gain"].get(),
+                        c["tx_gain"].get(),
+                        c["rx_phase"].get(),
+                        c["tx_phase"].get()
+                    ])
+        except OSError as e:
+            self.status_var.set(f"Save failed: {e}")
+            messagebox.showerror("Save Cal", f"Could not write the cal file:\n{cal_path}\n\n{e}")
+            return
 
-        self.status_var.set("Saved")
+        if existed:
+            self.status_var.set("Saved")
+        else:
+            self.status_var.set(f"Saved (new cal file created: {os.path.basename(cal_path)})")
+            messagebox.showwarning("Cal file created", f"The cal file did not exist, so it was created:\n{cal_path}")
 
     def _hal_for(self, addr):
         return self.dev_hal[self.dev_addr.index(addr)]
@@ -675,8 +725,13 @@ class App(tk.Tk):
             self._hal_for(addr).stg2_load()
 
     def on_load_cal(self):
+        cal_path = self.cal_path_var.get().strip()
+        if not cal_path or not os.path.isfile(cal_path):
+            self.status_var.set("Load failed: cal file not found")
+            messagebox.showerror("Load Cal", f"Cal file not found:\n{cal_path or '(no file selected)'}\n\nNothing was loaded.")
+            return
         try:
-            rows = self._read_cal(self.cal_path)
+            rows = self._read_cal(cal_path)
             unknown = [r["element_id"] for r in rows if r["element_id"] not in self.element_controls]
             if unknown:
                 raise ValueError(f"elements {unknown} are not in the loaded plank cfg")
@@ -717,7 +772,7 @@ class App(tk.Tk):
         self.orion_bdst.SYNC_RST.sync_rst = 0
         self.orion_bdst.SYNC_RST.write()
 
-        self.on_load_plank(self.cfg_path)  # this resets all GUI selections
+        self.on_load_plank(self.cfg_path, keep_cal_path=True)  # this resets all GUI selections
 
         self.status_var.set("Plank reset")
 
