@@ -39,6 +39,15 @@ class vna:
             self.rm_vna.write(f':CALC:MEAS{win_id}:FORM PHASe')
             self.rm_vna.write(f':DISP:MEAS{win_id}:FEED 2')
 
+        if mode == 'S11_GAIN':
+            self.rm_vna.write(f':CALC:MEAS{win_id}:DEF "S11"')
+            self.rm_vna.write(f':CALC:MEAS{win_id}:FORM MLOG')
+            self.rm_vna.write(f':DISP:MEAS{win_id}:FEED {win_id}')
+        if mode == 'S11_PHASE':
+            self.rm_vna.write(f':CALC:MEAS{win_id}:DEF "S11"')
+            self.rm_vna.write(f':CALC:MEAS{win_id}:FORM PHASe')
+            self.rm_vna.write(f':DISP:MEAS{win_id}:FEED {win_id}')
+
     def cfg_freq(self, start=7e9, stop=13e9, step=250e6):
         self.rm_vna.write(f':SENS:FREQ:STAR {start}')
         self.rm_vna.write(f':SENS:FREQ:STOP {stop}')
