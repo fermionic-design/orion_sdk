@@ -2,8 +2,9 @@
 """
 Loop RX I/Q codes and print S21 gain/phase from the VNA at f_disp.
 """
+chip_name = 'chip_55'   # DUT label, prefixed to the file name
 version = 'v2'
-vdd = '3p3'     # supply voltage, label for the file name only
+vdd ='2p7'     # supply voltage, label for the file name only
 temp = '25C'    # temperature, label for the file name only
 bias = 'NOM'    # RX bias: 'NOM' or 'LOW'
 ant_sel = 0x1   # RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
@@ -64,7 +65,7 @@ def iq_code(v):
     return 256 - v if v < 0 else v   # bit 8 = sign, low 8 bits = magnitude
 
 os.makedirs('./logs', exist_ok=True)
-csv_path = f'./logs/rx_iq_char__{version}__ant_sel_{ant_sel}__vdd_{vdd}__temp_{temp}__bias_{bias}__av_{av}__iq_[{i_codes[0]},{i_codes[1]-i_codes[0]},{i_codes[-1]}]__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
+csv_path = f'./logs/{chip_name}__rx_iq_char__{version}__ant_sel_{ant_sel}__vdd_{vdd}__temp_{temp}__bias_{bias}__av_{av}__iq_[{i_codes[0]},{i_codes[1]-i_codes[0]},{i_codes[-1]}]__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
 rows = queue.Queue()
 
 def csv_writer():
