@@ -42,7 +42,7 @@ instruments.vna.init()
 instruments.vna.cfg(1, 'S21_GAIN')
 instruments.vna.cfg(2, 'S21_PHASE')
 instruments.vna.cfg_freq(start=f_min*1e9, stop=f_max*1e9, step=f_step*1e9)
-instruments.vna.cfg_pwr(pwr=8)
+instruments.vna.cfg_pwr(pwr=-40)
 instruments.vna.write(":SENS:AVER:STAT ON")
 instruments.vna.write(":SENS:AVER:COUN 128")
 
