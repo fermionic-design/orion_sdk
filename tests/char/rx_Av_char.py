@@ -7,8 +7,9 @@ vdd = '3p3'     # supply voltage, label for the file name only
 temp = '25C'    # temperature, label for the file name only
 bias = 'NOM'    # RX bias: 'NOM' or 'LOW'
 ant_sel = 0x8   # RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
-i_code = 264    # fixed I code, -255...255
-q_code = 464      # fixed Q code, -255...255
+# (I, Q) codes, -255...255: 8 points 45 deg apart in the I/Q plane on the -13.15 dB constant-gain contour of chip_55 ant 8
+# (measured points of the 2026-10-11 iq_char grid + axis csvs); 4 of them sit on the I / Q axes. An Av sweep runs for each pair.
+iq_pairs = [(248, 4), (136, 136), (1, 220), (-196, 196), (-248, -2), (-120, -120), (0, -224), (204, -204)]
 av_max = 2047
 av_step = 16       # step while av > av_switch
 av_switch = 32
@@ -72,43 +73,47 @@ def iq_code(v):
     return 256 - v if v < 0 else v   # bit 8 = sign, low 8 bits = magnitude
 
 os.makedirs('./logs', exist_ok=True)
-csv_path = f'./logs/rx_Av_char__{version}__ant_sel_{ant_sel}__vdd_{vdd}__temp_{temp}__bias_{bias}__iq_[{i_code},{q_code}]__av_[{av_max},{av_step},{av_switch},{av_fine_step},0]__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
-rows = queue.Queue()
 
-def csv_writer():
-    with open(csv_path, 'w', newline='') as fh:
-        w = csv.writer(fh)
-        w.writerow(['Av'] + [f'Gain dB {fr:g}GHz' for fr in freqs] + [f'Phase deg {fr:g}GHz' for fr in freqs])
-        while (row := rows.get()) is not None:
-            w.writerow(row)
-            fh.flush()
+for pair_n, (i_code, q_code) in enumerate(iq_pairs, 1):
+    print(f'\n--- I/Q pair {pair_n}/{len(iq_pairs)}: I = {i_code}, Q = {q_code} ---')
+    csv_path = f'./logs/rx_Av_char__{version}__ant_sel_{ant_sel}__vdd_{vdd}__temp_{temp}__bias_{bias}__iq_[{i_code},{q_code}]__av_[{av_max},{av_step},{av_switch},{av_fine_step},0]__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
+    rows = queue.Queue()
 
-writer = threading.Thread(target=csv_writer)
-writer.start()
+    def csv_writer():
+        with open(csv_path, 'w', newline='') as fh:
+            w = csv.writer(fh)
+            w.writerow(['Av'] + [f'Gain dB {fr:g}GHz' for fr in freqs] + [f'Phase deg {fr:g}GHz' for fr in freqs])
+            while (row := rows.get()) is not None:
+                w.writerow(row)
+                fh.flush()
 
-total = len(av_codes)
-done = 0
-loop_start = time.time()
-for av in av_codes:
-    orion_hal.set_iq_val(iq_code(i_code), iq_code(q_code), av, ant_sel)
-    orion_hal.stg2_load()
-    time.sleep(d1)
-    instruments.vna.write(":SENS:AVER:CLE")
-    time.sleep(d2)
+    writer = threading.Thread(target=csv_writer)
+    writer.start()
 
-    gain = np.array(instruments.vna.query(':CALC:MEAS1:DATA:FDATA?').strip().split(","), dtype=float)
-    phase = np.array(instruments.vna.query(':CALC:MEAS2:DATA:FDATA?').strip().split(","), dtype=float)
-    rows.put([av] + gain.tolist() + phase.tolist())
-    done += 1
-    print(f'\rAv = {av:4d}  ||  Gain @ {f_disp} GHz = {gain[fi]:7.2f} dB  |  Phase = {phase[fi]:8.2f} deg')
-    eta = '--:--:--'
-    if 100 * done >= total:   # wait for 1% before estimating
-        eta = str(datetime.timedelta(seconds=round((time.time() - loop_start) / done * (total - done))))
-    print(f'[{"#" * (30 * done // total):<30}] {100 * done // total:3d}%  ({done}/{total})  ETA {eta}', end='', flush=True)
+    total = len(av_codes)
+    done = 0
+    loop_start = time.time()
+    for av in av_codes:
+        orion_hal.set_iq_val(iq_code(i_code), iq_code(q_code), av, ant_sel)
+        orion_hal.stg2_load()
+        time.sleep(d1)
+        instruments.vna.write(":SENS:AVER:CLE")
+        time.sleep(d2)
 
-print()
-rows.put(None)
-writer.join()
-print(f'Data saved to {csv_path}')
+        gain = np.array(instruments.vna.query(':CALC:MEAS1:DATA:FDATA?').strip().split(","), dtype=float)
+        phase = np.array(instruments.vna.query(':CALC:MEAS2:DATA:FDATA?').strip().split(","), dtype=float)
+        rows.put([av] + gain.tolist() + phase.tolist())
+        done += 1
+        print(f'\rAv = {av:4d}  ||  Gain @ {f_disp} GHz = {gain[fi]:7.2f} dB  |  Phase = {phase[fi]:8.2f} deg')
+        eta = '--:--:--'
+        if 100 * done >= total:   # wait for 1% before estimating
+            eta = str(datetime.timedelta(seconds=round((time.time() - loop_start) / done * (total - done))))
+        print(f'[{"#" * (30 * done // total):<30}] {100 * done // total:3d}%  ({done}/{total})  ETA {eta}', end='', flush=True)
+
+    print()
+    rows.put(None)
+    writer.join()
+    print(f'Data saved to {csv_path}')
+
 instruments.vna.write(":OUTP OFF")
 spi.close()
