@@ -2,8 +2,9 @@
 """
 Loop the RX gain code (Av) at a fixed I/Q and print S21 gain/phase from the VNA at f_disp.
 """
+chip_name = 'chip_55'   # DUT label, prefixed to the file name
 version = 'v2'
-vdd = '3p3'     # supply voltage, label for the file name only
+vdd = '2p7'     # supply voltage, label for the file name only
 temp = '25C'    # temperature, label for the file name only
 bias = 'NOM'    # RX bias: 'NOM' or 'LOW'
 ant_sel = 0x8   # RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
@@ -76,7 +77,7 @@ os.makedirs('./logs', exist_ok=True)
 
 for pair_n, (i_code, q_code) in enumerate(iq_pairs, 1):
     print(f'\n--- I/Q pair {pair_n}/{len(iq_pairs)}: I = {i_code}, Q = {q_code} ---')
-    csv_path = f'./logs/rx_Av_char__{version}__ant_sel_{ant_sel}__vdd_{vdd}__temp_{temp}__bias_{bias}__iq_[{i_code},{q_code}]__av_[{av_max},{av_step},{av_switch},{av_fine_step},0]__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
+    csv_path = f'./logs/{chip_name}__rx_Av_char__{version}__ant_sel_{ant_sel}__vdd_{vdd}__temp_{temp}__bias_{bias}__iq_[{i_code},{q_code}]__av_[{av_max},{av_step},{av_switch},{av_fine_step},0]__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
     rows = queue.Queue()
 
     def csv_writer():
