@@ -7,10 +7,15 @@ version = 'v2'
 vdd ='2p7'     # supply voltage, label for the file name only
 temp = '25C'    # temperature, label for the file name only
 bias = 'NOM'    # RX bias: 'NOM' or 'LOW'
-ant_sel = 0x1   # RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
+ant_sel = 0x8   # RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
 av = 2047
 i_codes = list(range(-252, 253, 4))   # multiples of 4 -> 2 LSBs are 0
 q_codes = list(range(-252, 253, 4))   # multiples of 4 -> 2 LSBs are 0
+
+sweep = 'axis'         # 'grid': every (I, Q) of i_codes x q_codes, 'axis': only bands around the I and Q axes
+axis_width = 11        # axis mode: band half-width, e.g. for I = 0 sweep Q = -16...+16
+axis_step = 1          # axis mode: code step across the band
+axis_along_step = 4    # axis mode: code step along the axis (the i_codes / q_codes range is used)
 
 f_min, f_max, f_step = 7, 13, 0.25
 f_disp = 9.5   # GHz printed
@@ -64,8 +69,20 @@ orion_hal.en_data_path(1)
 def iq_code(v):
     return 256 - v if v < 0 else v   # bit 8 = sign, low 8 bits = magnitude
 
+if sweep == 'grid':
+    points = [(i, q) for q in q_codes for i in i_codes]
+    iq_tag = f'{i_codes[0]},{i_codes[1]-i_codes[0]},{i_codes[-1]}'
+else:
+    across = range(-axis_width, axis_width + 1, axis_step)
+    along_i = range(i_codes[0], i_codes[-1] + 1, axis_along_step)
+    along_q = range(q_codes[0], q_codes[-1] + 1, axis_along_step)
+    points = [(i, q) for q in across for i in along_i]          # band around the I axis (Q ~ 0)
+    points += [(i, q) for q in along_q for i in across]         # band around the Q axis (I ~ 0)
+    points = list(dict.fromkeys(points))                        # the two bands overlap near the origin
+    iq_tag = f'axis_w{axis_width}_s{axis_step}_a{axis_along_step}'
+
 os.makedirs('./logs', exist_ok=True)
-csv_path = f'./logs/{chip_name}__rx_iq_char__{version}__ant_sel_{ant_sel}__vdd_{vdd}__temp_{temp}__bias_{bias}__av_{av}__iq_[{i_codes[0]},{i_codes[1]-i_codes[0]},{i_codes[-1]}]__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
+csv_path = f'./logs/{chip_name}__rx_iq_char__{version}__ant_sel_{ant_sel}__vdd_{vdd}__temp_{temp}__bias_{bias}__av_{av}__iq_[{iq_tag}]__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
 rows = queue.Queue()
 
 def csv_writer():
@@ -79,26 +96,25 @@ def csv_writer():
 writer = threading.Thread(target=csv_writer)
 writer.start()
 
-total = len(i_codes) * len(q_codes)
+total = len(points)
 done = 0
 loop_start = time.time()
-for q in q_codes:
-    for i in i_codes:
-        orion_hal.set_iq_val(iq_code(i), iq_code(q), av, ant_sel)
-        orion_hal.stg2_load()
-        time.sleep(d1)
-        instruments.vna.write(":SENS:AVER:CLE")
-        time.sleep(d2)
+for i, q in points:
+    orion_hal.set_iq_val(iq_code(i), iq_code(q), av, ant_sel)
+    orion_hal.stg2_load()
+    time.sleep(d1)
+    instruments.vna.write(":SENS:AVER:CLE")
+    time.sleep(d2)
 
-        gain = np.array(instruments.vna.query(':CALC:MEAS1:DATA:FDATA?').strip().split(","), dtype=float)
-        phase = np.array(instruments.vna.query(':CALC:MEAS2:DATA:FDATA?').strip().split(","), dtype=float)
-        rows.put([i, q] + gain.tolist() + phase.tolist())
-        done += 1
-        print(f'\rI = {i:+4d}  |  Q = {q:+4d}  ||  Gain @ {f_disp} GHz = {gain[fi]:7.2f} dB  |  Phase = {phase[fi]:8.2f} deg')
-        eta = '--:--:--'
-        if 100 * done >= total:   # wait for 1% before estimating
-            eta = str(datetime.timedelta(seconds=round((time.time() - loop_start) / done * (total - done))))
-        print(f'[{"#" * (30 * done // total):<30}] {100 * done // total:3d}%  ({done}/{total})  ETA {eta}', end='', flush=True)
+    gain = np.array(instruments.vna.query(':CALC:MEAS1:DATA:FDATA?').strip().split(","), dtype=float)
+    phase = np.array(instruments.vna.query(':CALC:MEAS2:DATA:FDATA?').strip().split(","), dtype=float)
+    rows.put([i, q] + gain.tolist() + phase.tolist())
+    done += 1
+    print(f'\rI = {i:+4d}  |  Q = {q:+4d}  ||  Gain @ {f_disp} GHz = {gain[fi]:7.2f} dB  |  Phase = {phase[fi]:8.2f} deg')
+    eta = '--:--:--'
+    if 100 * done >= total:   # wait for 1% before estimating
+        eta = str(datetime.timedelta(seconds=round((time.time() - loop_start) / done * (total - done))))
+    print(f'[{"#" * (30 * done // total):<30}] {100 * done // total:3d}%  ({done}/{total})  ETA {eta}', end='', flush=True)
 
 print()
 rows.put(None)
