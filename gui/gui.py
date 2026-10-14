@@ -1038,6 +1038,13 @@ def start_sweep(mode, trx_mode, channel, phase, gain):
     sweep_thread.start()
 
 
+def get_sweep_freqs_mhz():
+    # Frequency axis sized to the captured traces; the VNA may return a different
+    # point count than the configured step implies
+    n = len(sweep_data['gain'][0])
+    return np.linspace(vna_freq_start, vna_freq_stop, n) / 1e6
+
+
 def get_sweep_traces():
     # Gain/phase traces (sweep steps x frequencies), referenced to the first
     # sweep step, phase wrapped into +/-180
@@ -1102,7 +1109,7 @@ def plot_sweep(freq_mhz):
     if not sweep_plot_ready():
         return
 
-    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
+    freqs_mhz = get_sweep_freqs_mhz()
     freq_idx = int(np.argmin(np.abs(freqs_mhz - float(freq_mhz))))
 
     gain, phase = get_sweep_traces()
@@ -1135,7 +1142,7 @@ def plot_sweep_errors(freq_mhz):
     if not sweep_plot_ready():
         return
 
-    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
+    freqs_mhz = get_sweep_freqs_mhz()
     freq_idx = int(np.argmin(np.abs(freqs_mhz - float(freq_mhz))))
 
     gain_err, phase_err = get_sweep_errors()
@@ -1164,7 +1171,7 @@ def plot_sweep_rms_errors(freq_mhz):
     if not sweep_plot_ready():
         return
 
-    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
+    freqs_mhz = get_sweep_freqs_mhz()
 
     # Restrict the stats to a 1 GHz band centered on the chosen frequency
     band = np.abs(freqs_mhz - float(freq_mhz)) <= 500
@@ -1208,7 +1215,7 @@ def analyze_sweep(freq_mhz):
     if not sweep_plot_ready():
         return
 
-    freqs_mhz = np.arange(vna_freq_start, vna_freq_stop + vna_freq_step, vna_freq_step) / 1e6
+    freqs_mhz = get_sweep_freqs_mhz()
     gain_err, phase_err = get_sweep_errors()
 
     lines = []
