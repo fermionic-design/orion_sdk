@@ -6,16 +6,19 @@ ant_sel = 0x1   # RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
 f_min, f_max, f_step = 7, 13, 0.25
 f_mark = 9.5   # GHz: marker and printed values
 show_rms = 1   # 1: print rms along with sd in the error stats, 0: sd only
-sweep = 'phase'   # 'phase' (p_idx 4...124), 'gain' (g_idx 0...63) or 'both' (gain outer loop, phase inner loop)
-g_start, g_stop, g_step = 0, 63, 10   # gain code range (inclusive) and step, used when sweep is 'gain' or 'both'
+sweep = 'both'   # 'phase' (p_idx 4...124), 'gain' (g_idx 0...63) or 'both' (gain outer loop, phase inner loop)
+g_start, g_stop, g_step = 0, 50, 5   # gain code range (inclusive) and step, used when sweep is 'gain' or 'both'
 lut_switch = 30 # gain codes above this use the 2nd RX LUT (set_freq('11G'))
 lut2_backoff_db = 5   # backoff of the 2nd LUT: after the switch the programmed gain index is reduced by backoff/0.5 steps
 
-gain_lut = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_gain_lut__freq_9p5__algo_joint_max__iq_[264,464]__bias_nom__vdd_3p3__temp_25C.xlsx'   # RX gain LUT (phase correction codes = 0)
+# gain_lut = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_gain_lut__freq_9p5__algo_joint_max__iq_[264,464]__bias_nom__vdd_3p3__temp_25C.xlsx'   # RX gain LUT (phase correction codes = 0)
+gain_lut = r'C:\Users\silic\Github\orion_sdk\scripts/logs/chip_55__4ch__v2__rx_gain_lut__freq_9p5__algo_joint_max__iq_[204,-204]__bias_nom__vdd_2p7__temp_25C.xlsx'
 
-ph_lut = '0dB'   # '0dB', '5dB', or 'switch' (switch LUTs at lut_switch gain code)
-ph_lut_0dB = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_0__algo_joint_max__av_2047__bias_nom__vdd_3p3__temp_25C__chip_[51,52,53,54].xlsx'
-ph_lut_5db = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_5__algo_joint_max__av_2047__bias_nom__vdd_3p3__temp_25C.xlsx'
+ph_lut = 'switch'   # '0dB', '5dB', or 'switch' (switch LUTs at lut_switch gain code)
+# ph_lut_0dB = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_0__algo_joint_max__av_2047__bias_nom__vdd_3p3__temp_25C__chip_[51,52,53,54].xlsx'
+ph_lut_0dB = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_0__algo_joint_max__av_2047__bias_nom__vdd_2p7__temp_25C__step_1.xlsx'
+# ph_lut_5db = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_5__algo_joint_max__av_2047__bias_nom__vdd_3p3__temp_25C.xlsx'
+ph_lut_5db = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_5__algo_joint_max__av_2047__bias_nom__vdd_2p7__temp_25C__step_1.xlsx'
 
 d1 = 0.1
 d2 = 0.2   # delay after clearing averaging
@@ -123,6 +126,8 @@ for g_idx in g_idxs:
         if (g_idx, p_idx) == (g_idxs[0], 4):
             ref_gain, ref_phase = gain, phase   # reference: gain idx 0, phase state 4 after normalization
             ref_s11, ref_s11_ph = s11, s11_ph   # S11 is not normalized, so its reference is the first point
+        if p_idx == 4:
+            ref_phase = phase   # phase error is relative to phase code 0 (p_idx 4) of the same gain code
         g_err = gain - ref_gain + (g_idx - g_idxs[0])*0.5
         ph_err = wrap(phase - ref_phase - (p_idx-4)*step)
         s11_d = s11 - ref_s11

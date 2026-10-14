@@ -114,6 +114,8 @@ for g_idx in g_idxs:
         phase = float(np.array(instruments.vna.query(':CALC:MEAS2:DATA:FDATA?').strip().split(","), dtype=float)[fi])
         if (g_idx, p_idx) == (g_idxs[0], 4):
             ref_gain, ref_phase = gain, phase   # reference: gain idx 0, phase state 4 after normalization
+        if p_idx == 4:
+            ref_phase = phase   # phase error is relative to phase code 0 (p_idx 4) of the same gain code
         g_err = gain - ref_gain + (g_idx - g_idxs[0])*0.5
         ph_err = wrap(phase - ref_phase - (p_idx-4)*step)
         csv_out.writerow([g_idx, p_idx, gain, phase, g_err, ph_err, g_prog])
