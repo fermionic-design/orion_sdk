@@ -39,6 +39,12 @@ class vna:
             self.rm_vna.write(f':CALC:MEAS{win_id}:FORM PHASe')
             self.rm_vna.write(f':DISP:MEAS{win_id}:FEED 2')
 
+        if mode in ('S11_GAIN', 'S11_PHASE', 'S22_GAIN', 'S22_PHASE'):   # reflection: magnitude (dB) or phase (deg)
+            param, fmt = mode.split('_')
+            self.rm_vna.write(f':CALC:MEAS{win_id}:DEF "{param}"')
+            self.rm_vna.write(f':CALC:MEAS{win_id}:FORM {"MLOG" if fmt == "GAIN" else "PHASe"}')
+            self.rm_vna.write(f':DISP:MEAS{win_id}:FEED {win_id}')
+
     def cfg_freq(self, start=7e9, stop=13e9, step=250e6):
         self.rm_vna.write(f':SENS:FREQ:STAR {start}')
         self.rm_vna.write(f':SENS:FREQ:STOP {stop}')
