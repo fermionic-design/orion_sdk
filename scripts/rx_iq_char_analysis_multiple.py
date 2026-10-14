@@ -1,4 +1,4 @@
-"""
+﻿"""
 Overlay a closed I/Q gain contour (backoff_db below the highest-gain one), and the phase along it, from several
 csv files written by tests/char/rx_iq_char.py.
 
@@ -93,16 +93,16 @@ for k, sw in enumerate(sweeps):
     ang = np.degrees(np.arctan2(q, i))
     order = np.argsort(ang)
     ph = np.degrees(np.unwrap(np.radians(sw.phase_at(i, q)[order])))
+    ph -= np.interp(0, ang[order], ph)   # normalize: phase = 0 at 0 deg angle
     label = f'{sw.name} ({lvl:.2f} dB)'
     color = plt.cm.tab10(k % 10)
     ax[0].plot(i, q, color=color, lw=2, label=label)
-    ax[1].plot(ang[order], ph, '.-', color=color, label=label)
     ax[1].plot(ang[order], ph, '-', color=color, label=label)
 
 ax[0].set_title(f'Closed contour {backoff_db:g} dB below the highest @ {sweeps[0].ghz:g} GHz')
 ax[0].set_xlabel('I code'); ax[0].set_ylabel('Q code'); ax[0].set_aspect('equal'); ax[0].grid(True)
 ax[1].set_title('Phase along the contour')
-ax[1].set_xlabel('Angle in I/Q plane (deg)'); ax[1].set_ylabel('Phase (deg)'); ax[1].grid(True)
+ax[1].set_xlabel('Angle in I/Q plane (deg)'); ax[1].set_ylabel('Phase (deg, 0 at 0 deg angle)'); ax[1].grid(True)
 ax[1].legend(fontsize=7)
 fig.tight_layout()
 
@@ -144,15 +144,17 @@ for k, sw in enumerate(sweeps[1:], start=1):
     err_std[sw.name] = err0.std()
     ax2.plot(np.arange(lut_depth), err0, '.-', color=plt.cm.tab10(k % 10), label=f'{sw.name} (offset {offset:.1f} deg removed)')
 
-    ax3.plot(path[:, 0], path[:, 1], color='gray', lw=0.8)
-    lim = np.abs(err0).max()
-    sc = ax3.scatter(lut_i, lut_q, c=err0, cmap='coolwarm', vmin=-lim, vmax=lim, s=40, zorder=3)
-    for n in range(0, lut_depth, 10):
-        ax3.annotate(str(n), (lut_i[n], lut_q[n]), fontsize=7, xytext=(3, 3), textcoords='offset points')
-    fig3.colorbar(sc, ax=ax3, label='Phase error (deg)')
-    ax3.set_title(f'LUT points on {ref.name[-30:]} contour, colored by error on {sw.name[-30:]}', fontsize=8)
-    ax3.set_xlabel('I code'); ax3.set_ylabel('Q code'); ax3.set_aspect('equal'); ax3.grid(True)
-    fig3.tight_layout()
+    if per_device_plots:
+        fig3, ax3 = plt.subplots(figsize=(8, 7))
+        ax3.plot(path[:, 0], path[:, 1], color='gray', lw=0.8)
+        lim = np.abs(err0).max()
+        sc = ax3.scatter(lut_i, lut_q, c=err0, cmap='coolwarm', vmin=-lim, vmax=lim, s=40, zorder=3)
+        for n in range(0, lut_depth, 10):
+            ax3.annotate(str(n), (lut_i[n], lut_q[n]), fontsize=7, xytext=(3, 3), textcoords='offset points')
+        fig3.colorbar(sc, ax=ax3, label='Phase error (deg)')
+        ax3.set_title(f'LUT points on {ref.name[-30:]} contour, colored by error on {sw.name[-30:]}', fontsize=8)
+        ax3.set_xlabel('I code'); ax3.set_ylabel('Q code'); ax3.set_aspect('equal'); ax3.grid(True)
+        fig3.tight_layout()
 ax2.set_title(f'Phase error of the {lut_depth}-entry LUT from {ref.name}')
 ax2.set_xlabel('LUT index'); ax2.set_ylabel('Phase error (deg)'); ax2.grid(True); ax2.legend(fontsize=7)
 fig2.tight_layout()
