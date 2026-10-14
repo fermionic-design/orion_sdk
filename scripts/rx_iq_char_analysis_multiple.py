@@ -23,8 +23,9 @@ csv_files = [
     r'C:\Users\silic\Github\orion_sdk\tests\char\logs\rx_iq_char__v2__ant_sel_8__vdd_3p3__temp_25C__bias_NOM__av_2047__iq_[-128,4,128]__2026-09-30_21-40-56.csv',
 ]
 
+per_device_plots = False   # True: also one LUT-error contour scatter per device
 lut_depth = 121   # LUT entries, 360/121 = 2.975 deg apart
-backoff_db = 10    # use the closed contour this many dB below each file's highest-gain closed contour (0 = highest)
+backoff_db = 0    # use the closed contour this many dB below each file's highest-gain closed contour (0 = highest)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--freq', type=float, default=9.5, help='GHz (nearest column is used)')
@@ -96,6 +97,7 @@ for k, sw in enumerate(sweeps):
     color = plt.cm.tab10(k % 10)
     ax[0].plot(i, q, color=color, lw=2, label=label)
     ax[1].plot(ang[order], ph, '.-', color=color, label=label)
+    ax[1].plot(ang[order], ph, '-', color=color, label=label)
 
 ax[0].set_title(f'Closed contour {backoff_db:g} dB below the highest @ {sweeps[0].ghz:g} GHz')
 ax[0].set_xlabel('I code'); ax[0].set_ylabel('Q code'); ax[0].set_aspect('equal'); ax[0].grid(True)
@@ -142,7 +144,6 @@ for k, sw in enumerate(sweeps[1:], start=1):
     err_std[sw.name] = err0.std()
     ax2.plot(np.arange(lut_depth), err0, '.-', color=plt.cm.tab10(k % 10), label=f'{sw.name} (offset {offset:.1f} deg removed)')
 
-    fig3, ax3 = plt.subplots(figsize=(8, 7))
     ax3.plot(path[:, 0], path[:, 1], color='gray', lw=0.8)
     lim = np.abs(err0).max()
     sc = ax3.scatter(lut_i, lut_q, c=err0, cmap='coolwarm', vmin=-lim, vmax=lim, s=40, zorder=3)
