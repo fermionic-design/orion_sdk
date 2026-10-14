@@ -4,6 +4,7 @@ csv files written by tests/char/rx_iq_char.py (first file = reference channel).
 
 The LUT has 121 phase states, 360/121 = 2.975 deg apart, stored as 128 entries:
 entry i holds state (i-4) mod 121, so entries 4...124 are the states and the rest wrap around.
+The 'Gain Error' column holds each state's gain relative to state 0 as a 3-bit two's complement code, 0.5 dB per step.
 
 Knobs
   freq : GHz, nearest measured frequency is used
@@ -26,7 +27,7 @@ from scipy.spatial import cKDTree
 
 freq = 9.5
 gm = 1.0
-backoff = 10    # dB below the highest-gain closed contour used as the LUT gain level
+backoff = 0    # dB below the highest-gain closed contour used as the LUT gain level
 algo = 'joint_max'   # 'ref0', 'ref1', 'ref2', 'ref3', 'joint_rms' or 'joint_max'
 
 csv_files = [
@@ -36,6 +37,7 @@ csv_files = [
     r'C:\Users\silic\Github\orion_sdk\tests\char\logs\rx_iq_char__v2__ant_sel_8__vdd_3p3__temp_25C__bias_NOM__av_2047__iq_[-252,4,252]__2026-09-30_22-10-04.csv',
 ]
 out_dir = r'./logs'
+suffix = 'chip_[51,52,53,54]'     # optional custom suffix for the file name, e.g. 'wo_gain_corr' -> ...__temp_25C__wo_gain_corr.xlsx
 
 states = 121          # phase states per 360 deg
 lut_len = 128         # entries in the LUT memory
@@ -148,13 +150,28 @@ if algo.startswith('joint'):
     if algo == 'joint_max':
         sel = best_sel
 
+# ---------------- gain error code: 3-bit two's complement (-4...3), 0.5 dB per step ----------------
+# gain at each state relative to state 0, same rule as ORION_8G_12G_hal.init_lut
+rel = G[:, sel] - G[:, [sel[0]]]
+if algo.startswith('ref'):
+    rel_c = rel[ref]
+elif algo == 'joint_rms':
+    rel_c = rel.mean(axis=0)
+else:
+    rel_c = (rel.min(axis=0) + rel.max(axis=0)) / 2
+ge = np.round(rel_c / 0.5).astype(int)
+if ge.max() > 3:        # shift so the top fits, clip the bottom
+    ge = np.where(ge + 3 - ge.max() < -4, -4, ge + 3 - ge.max())
+elif ge.min() < -4:     # shift so the bottom fits, clip the top
+    ge = np.where(ge - 4 - ge.min() > 3, 3, ge - 4 - ge.min())
+
 # ---------------- report ----------------
 err = wrap(PH[:, sel] - target)
 off = circ_mean(err)
 err0 = wrap(err - off[:, None])
-print(f'\n{"channel":<8}{"offset":>9}{"phase sd":>10}{"phase pk":>10}{"gain sd":>9}   (deg, dB; offset removed)')
+print(f'\n{"channel":<8}{"offset":>9}{"phase sd":>10}{"phase pk":>10}{"gain sd":>9}{"corr":>7}   (deg, dB; offset removed; corr = gain sd after the gain error code, if it subtracts code*0.5 dB)')
 for c in range(len(sweeps)):
-    print(f'{c:<8}{off[c]:9.2f}{err0[c].std():10.2f}{np.abs(err0[c]).max():10.2f}{G[c, sel].std():9.2f}')
+    print(f'{c:<8}{off[c]:9.2f}{err0[c].std():10.2f}{np.abs(err0[c]).max():10.2f}{G[c, sel].std():9.2f}{(rel[c] - ge * 0.5).std():7.2f}')
 sd = err0.std(axis=1)
 print(f'max phase sd across channels (spec): {sd.max():.2f} deg (channel {sd.argmax()})')
 
@@ -169,11 +186,11 @@ for n in range(lut_len):
     k = sel[(n - pad) % states]
     i, q = int(I[k]), int(Q[k])
     r = n + 2
-    ws.append([enc(i), enc(q), 0, i, q, float(G[ref, k]), float(PH[ref, k]),
+    ws.append([enc(i), enc(q), int(ge[(n - pad) % states]), i, q, float(G[ref, k]), float(PH[ref, k]),
                f'=$G${pad + 2}-G{r}' if n >= pad else None])
 
 extra = ''.join(f'__{k}_{tag(v)}' for k, v, d in (('ring', ring, 32), ('gainw', gain_w, 10)) if v != d)   # only when changed from the default
-name = f'{version}__rx_phase_lut__freq_{tag(freq)}__gm_{tag(gm)}__backoff_{tag(backoff)}{extra}__algo_{algo}__av_{av}__bias_{bias.lower()}__vdd_{vdd}__temp_{temp}.xlsx'
+name = f'{version}__rx_phase_lut__freq_{tag(freq)}__gm_{tag(gm)}__backoff_{tag(backoff)}{extra}__algo_{algo}__av_{av}__bias_{bias.lower()}__vdd_{vdd}__temp_{temp}' + (f'__{suffix.strip(" _")}' if suffix.strip(' _') else '') + '.xlsx'
 os.makedirs(out_dir, exist_ok=True)
 path = os.path.join(out_dir, name)
 wb.save(path)
