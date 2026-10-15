@@ -792,6 +792,18 @@ class ORION_8G_12G_hal:
                 self.set_rx_cmb_icurr(3, ant_sel=ant_sel)
             self.set_rx_cmb_qcurr(3, ant_sel=ant_sel)
 
+    def set_tx_bias(self, icurr, qcurr, final_av, lna_curr, ant_sel=0xF):
+        "function to set TX combiner I/Q tail currents (2-bit, 0 to 3), driver current final_av (5-bit, 0 to 31) and common LNA current lna_curr (2-bit, 0 to 3)"
+        self.set_tx_lna_curr(lna_curr)
+        self.set_tx_cmb_icurr(icurr, ant_sel=ant_sel)
+        self.set_tx_cmb_qcurr(qcurr, ant_sel=ant_sel)
+        self.set_tx_drv_curr(final_av, ant_sel=ant_sel)
+
+    def set_rx_bias(self, icurr, qcurr, ant_sel=0xF):
+        "function to set RX combiner I and Q tail currents (2-bit each, 0 to 3)"
+        self.set_rx_cmb_icurr(icurr, ant_sel=ant_sel)
+        self.set_rx_cmb_qcurr(qcurr, ant_sel=ant_sel)
+
     def enable_tx(self, ant_sel, tx_lna_gain_ctrl=255, tx_lna_force_val=None):
         self.orion_csr.TX_LNA_CFG.TX_lna_gain_ctrl = (tx_lna_gain_ctrl & 0xFF)
         self.orion_csr.TX_LNA_CFG.write()
@@ -835,7 +847,7 @@ class ORION_8G_12G_hal:
         self.orion_csr.RSVD3.write()    
 
     def set_lut_idx(self, p_idx, g_idx, ant_sel, mode=None):
-        print(f'p_idx={p_idx}, g_idx={g_idx}, ant_sel={ant_sel}, trx_mode={self.trx_mode}')
+        # print(f'p_idx={p_idx}, g_idx={g_idx}, ant_sel={ant_sel}, trx_mode={self.trx_mode}')
         
         #------Set LUT IDX for RX---------------------------------------#   
        
@@ -848,7 +860,7 @@ class ORION_8G_12G_hal:
             # Set RX phase and gain codes using loop
             for i in range(4):
                 if(ant_sel & (1<<i)): # Currently setting for all antennas due to correction time issue
-                    print(f'Setting p_idx/g_idx for RX Ch[{i}]')
+                    # print(f'Setting p_idx/g_idx for RX Ch[{i}]')
                     phase_reg = getattr(self.orion_csr, f'PHASE_CODE_RX{i}')
                     gain_reg  = getattr(self.orion_csr, f'GAIN_CODE_RX{i}')
 
