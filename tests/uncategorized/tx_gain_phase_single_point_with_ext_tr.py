@@ -2,7 +2,7 @@
 # and then change the p_idx/g_idx to some other value,and comment out line no 56 and input 'PIN' in line no 52 and run
 # the code again. Now  connect the txl pin to VDDIO to see the gain/phase change in VNA.
 version = 'v2'
-ant_sel = 0x4 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
+ant_sel = 0x1 # Antenna selection for RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
 
 p_idx = 4  # 4...124
 g_idx = 0   # 0...63
@@ -38,6 +38,23 @@ else:
                            r'../final_lut/RX0_Gain_LUT_9p5GHz_LowBias_I_460_Q_8.xlsx',
                            r'../final_lut/phase_lut_freq_9p5_gm_0p5_pm_1p5_optimal.xlsx')
 
+orion_csr.DAC_CTRL_PA0.DAC_CTRL_PA0 = 50  # 0 corresponds to -2.5V
+orion_csr.DAC_CTRL_PA0.write()
+orion_csr.DAC_CTRL_PA1.DAC_CTRL_PA1 = 0  # 0 corresponds to -2.5V
+orion_csr.DAC_CTRL_PA1.write()
+orion_csr.DAC_CTRL_PA2.DAC_CTRL_PA2 = 0  # 0 corresponds to -2.5V
+orion_csr.DAC_CTRL_PA2.write()
+orion_csr.DAC_CTRL_PA3.DAC_CTRL_PA3 = 0  # 0 corresponds to -2.5V
+orion_csr.DAC_CTRL_PA3.write()
+
+orion_csr.DAC_CTRL_PA0_PDN.DAC_CTRL_PA0_PDN = 0  # 0 corresponds to -4.5V
+orion_csr.DAC_CTRL_PA0_PDN.write()
+orion_csr.DAC_CTRL_PA1_PDN.DAC_CTRL_PA1_PDN = 0  # 0 corresponds to -4.5V
+orion_csr.DAC_CTRL_PA1_PDN.write()
+orion_csr.DAC_CTRL_PA2_PDN.DAC_CTRL_PA2_PDN = 0  # 0 corresponds to -4.5V
+orion_csr.DAC_CTRL_PA2_PDN.write()
+orion_csr.DAC_CTRL_PA3_PDN.DAC_CTRL_PA3_PDN = 0  # 0 corresponds to -4.5V
+orion_csr.DAC_CTRL_PA3_PDN.write()
                        
 orion_csr.DEVICE_ID.read()
 print('device_id = '+hex(orion_csr.DEVICE_ID.device_id))
@@ -54,5 +71,6 @@ orion_hal.cfg_stg2_load('REG')
 orion_hal.en_data_path(1)
 orion_hal.set_lut_idx(p_idx,g_idx,ant_sel)
 orion_hal.stg2_load()
+spi.pa_set()
 
 spi.close()
