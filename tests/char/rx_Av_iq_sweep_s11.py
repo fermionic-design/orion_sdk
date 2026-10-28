@@ -1,24 +1,33 @@
 # -- coding: utf-8 --
 version = 'v2'
-bias = 'NOM'    # RX bias: 'NOM' or 'LOW'
+bias_mode = 'curr'     # 'preset': orion_hal.init_rx(bias), 'curr': orion_hal.set_rx_bias(i_curr, q_curr) only (no init_rx)
+bias = 'NOM'    # preset mode: RX bias 'NOM' or 'LOW'
+i_curr = 0      # curr mode: RX combiner I tail current, 2-bit (0...3)
+q_curr = 1      # curr mode: RX combiner Q tail current, 2-bit (0...3)
 ant_sel = 0x1   # RX0: 0x1, RX1: 0x2, RX2: 0x4, RX3: 0x8
+ant_sel_all = True   # True: hardware calls always get 0xF and ant_sel is only used for the file name; False: ant_sel is applied to the hardware
 
 f_min, f_max, f_step = 7, 13, 0.25
 f_mark = 9.5   # GHz: marker and printed values
 show_rms = 1   # 1: print rms along with sd in the error stats, 0: sd only
-sweep = 'both'   # 'phase' (p_idx 4...124), 'gain' (g_idx 0...63) or 'both' (gain outer loop, phase inner loop)
-g_start, g_stop, g_step = 0, 50, 5   # gain code range (inclusive) and step, used when sweep is 'gain' or 'both'
-lut_switch = 30 # gain codes above this use the 2nd RX LUT (set_freq('11G'))
-lut2_backoff_db = 5   # backoff of the 2nd LUT: after the switch the programmed gain index is reduced by backoff/0.5 steps
+sweep = 'phase'   # 'phase' (p_idx 4...124), 'gain' (g_idx 0...63) or 'both' (gain outer loop, phase inner loop)
+g_start, g_stop, g_step = 0, 48, 4   # gain code range (inclusive) and step, used when sweep is 'gain' or 'both'
+g_fixed = 0   # gain code held while sweep is 'phase'
+lut_switch = 24 # gain codes above this use the 2nd RX LUT (set_freq('11G'))
+lut2_backoff_db = 4   # backoff of the 2nd LUT: after the switch the programmed gain index is reduced by backoff/0.5 steps
 
 # gain_lut = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_gain_lut__freq_9p5__algo_joint_max__iq_[264,464]__bias_nom__vdd_3p3__temp_25C.xlsx'   # RX gain LUT (phase correction codes = 0)
-gain_lut = r'C:\Users\silic\Github\orion_sdk\scripts/logs/chip_55__4ch__v2__rx_gain_lut__freq_9p5__algo_joint_max__iq_[204,-204]__bias_nom__vdd_2p7__temp_25C.xlsx'
+# gain_lut = r'C:\Users\silic\Github\orion_sdk\scripts/logs/chip_55__4ch__v2__rx_gain_lut__freq_9p5__algo_joint_max__iq_[204,-204]__bias_nom__vdd_2p7__temp_25C.xlsx'
+gain_lut = r'C:\Users\silic\Github\orion_sdk\scripts\logs\chip_55__4ch__v2__rx_gain_lut__freq_9p5__algo_joint_max__iq_[248,4]__bias_nom__vdd_2p7__temp_25C__max_code_41.xlsx'
 
-ph_lut = 'switch'   # '0dB', '5dB', or 'switch' (switch LUTs at lut_switch gain code)
+ph_lut = '0dB'   # '0dB', '5dB', or 'switch' (switch LUTs at lut_switch gain code)
 # ph_lut_0dB = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_0__algo_joint_max__av_2047__bias_nom__vdd_3p3__temp_25C__chip_[51,52,53,54].xlsx'
-ph_lut_0dB = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_0__algo_joint_max__av_2047__bias_nom__vdd_2p7__temp_25C__step_1.xlsx'
+# ph_lut_0dB = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_0__algo_joint_max__av_2047__bias_nom__vdd_2p7__temp_25C__step_1.xlsx'
+ph_lut_0dB = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_0__algo_joint_max__av_2047__bias_i0_q1__vdd_2p7__temp_25C__bias_i0_q1.xlsx'
+# ph_lut_0dB = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_0__algo_joint_max__av_228__bias_nom__vdd_2p7__temp_25C__step_1__chip_55_ant_[1,2,4]__av_228.xlsx'
 # ph_lut_5db = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_5__algo_joint_max__av_2047__bias_nom__vdd_3p3__temp_25C.xlsx'
-ph_lut_5db = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_5__algo_joint_max__av_2047__bias_nom__vdd_2p7__temp_25C__step_1.xlsx'
+# ph_lut_5db = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_5__algo_joint_max__av_2047__bias_nom__vdd_2p7__temp_25C__step_1.xlsx'
+ph_lut_5db = r'C:\Users\silic\Github\orion_sdk\scripts\logs\v2__rx_phase_lut__freq_9p5__gm_1__backoff_5__algo_joint_max__av_228__bias_nom__vdd_2p7__temp_25C__step_1__chip_55_ant_[1,2,4]__av_228.xlsx'
 
 d1 = 0.1
 d2 = 0.2   # delay after clearing averaging
@@ -52,7 +61,7 @@ instruments.vna.add_marker(win_id=4, marker_id=1, val=f_mark*1e9)
 instruments.vna.write(":SENS:AVER:STAT ON")
 instruments.vna.write(":SENS:AVER:COUN 128")
 
-spi = SPI()
+spi = SPI(log_en=0)
 orion_csr = ORION_8G_12G(spi)
 orion_lut = ORION_8G_12G_lut(spi)
 orion_hal = ORION_8G_12G_hal(orion_csr, orion_lut, spi, version)
@@ -68,17 +77,27 @@ orion_hal.init_lut_new(r'C:/Users/silic/GitHub/orion/final_lut/TX_Gain_LUT_10p5G
                            gain_lut,
                            lut2)
 
+hw_ant_sel = 0xF if ant_sel_all else ant_sel   # value passed to every hardware call
+ant_tag = f'all_{ant_sel}' if ant_sel_all else f'{ant_sel}'   # file name: all_1 = all RX on, ant_sel only labels the DUT channel
+
 orion_hal.set_tr_mode('INT_TR')
 orion_hal.set_trx_mode(0)
-orion_hal.init_rx(bias)
-orion_hal.set_tr_mask(rx_mask=ant_sel)
+if bias_mode == 'preset':
+    orion_hal.init_rx(bias)
+    bias_tag = bias
+else:
+    orion_hal.set_rx_bias(i_curr, q_curr, hw_ant_sel)
+    bias_tag = f'i{i_curr}_q{q_curr}'
+orion_hal.set_tr_mask(rx_mask=hw_ant_sel)
 orion_hal.set_freq('9G')
 orion_hal.cfg_stg2_load('REG')
 orion_hal.enable_rx_correction(1)
 orion_hal.en_data_path(1)
 # orion_hal.dac_cfg(pa_sel=ant_sel, lna_sel=ant_sel, LNA0=19)
 
-orion_hal.set_lut_idx(4,0, 0xF)
+spi.cfg_logging(log_en=0)
+
+orion_hal.set_lut_idx(4,0, hw_ant_sel)
 orion_hal.stg2_load()
 time.sleep(d1)
 instruments.vna.write(":SENS:AVER:CLE")
@@ -90,13 +109,13 @@ step = 360/121   # deg per LUT state
 wrap = lambda d: (d + 180) % 360 - 180
 
 p_idxs = range(4, 125) if sweep in ('phase', 'both') else [4]
-g_idxs = range(g_start, g_stop + 1, g_step) if sweep in ('gain', 'both') else [0]
+g_idxs = range(g_start, g_stop + 1, g_step) if sweep in ('gain', 'both') else [g_fixed if sweep == 'phase' else 0]
 
 tag = lambda x: f'{x:g}'.replace('.', 'p')
 g_tag = f'{g_idxs[0]}' if len(g_idxs) == 1 else f'{g_idxs[0]},{g_step},{g_idxs[-1]}'
 p_tag = f'{p_idxs[0]}' if len(p_idxs) == 1 else f'{p_idxs[0]},1,{p_idxs[-1]}'
 os.makedirs('./logs', exist_ok=True)
-csv_path = f'./logs/rx_Av_iq_sweep_s11__{version}__ant_sel_{ant_sel}__bias_{bias}__sweep_{sweep}__g_[{g_tag}]__p_[{p_tag}]__freq_{tag(f_mark)}__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
+csv_path = f'./logs/rx_Av_iq_sweep_s11__{version}__ant_sel_{ant_tag}__bias_{bias_tag}__sweep_{sweep}__g_[{g_tag}]__p_[{p_tag}]__freq_{tag(f_mark)}__{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}.csv'
 csv_fh = open(csv_path, 'w', newline='')
 csv_out = csv.writer(csv_fh)
 csv_out.writerow(['g_idx', 'p_idx', 'Gain dB', 'Phase deg', 'Gain err dB', 'Phase err deg', 'g_prog',
@@ -113,7 +132,7 @@ for g_idx in g_idxs:
         orion_hal.set_freq('11G')
         g_prog = max(g_idx - int(round(lut2_backoff_db / 0.5)), 0)
     for p_idx in p_idxs:
-        orion_hal.set_lut_idx(p_idx, g_prog, 0xF)
+        orion_hal.set_lut_idx(p_idx, g_prog, hw_ant_sel)
         orion_hal.stg2_load()
         time.sleep(d1)
         instruments.vna.write(":SENS:AVER:CLE")
@@ -126,8 +145,8 @@ for g_idx in g_idxs:
         if (g_idx, p_idx) == (g_idxs[0], 4):
             ref_gain, ref_phase = gain, phase   # reference: gain idx 0, phase state 4 after normalization
             ref_s11, ref_s11_ph = s11, s11_ph   # S11 is not normalized, so its reference is the first point
-        if p_idx == 4:
-            ref_phase = phase   # phase error is relative to phase code 0 (p_idx 4) of the same gain code
+        if p_idx == 4 and sweep != 'gain':
+            ref_phase = phase   # phase error is relative to phase code 0 (p_idx 4) of the same gain code; in a gain sweep it stays relative to the starting phase
         g_err = gain - ref_gain + (g_idx - g_idxs[0])*0.5
         ph_err = wrap(phase - ref_phase - (p_idx-4)*step)
         s11_d = s11 - ref_s11
