@@ -1284,6 +1284,33 @@ class ORION_8G_12G_hal:
             else:  # det_mask must be 0x8
                 return (reg23 & 0x38) >> 3
 
+    def set_det_flash_adc_samp_delay(self, delay_value):
+        self.orion_csr.REG0_TX1.read()
+        self.orion_csr.REG0_TX0.read()
+        match delay_value:
+            case 4:
+                # Flash ADC delay of 2.047us
+                self.orion_csr.REG0_TX1.tr_clk_delay_ctrl_1_0 = 1
+                self.orion_csr.REG0_TX0.tr_clk_delay_ctrl_3_2 = 0
+            case 3:
+                # Flash ADC delay of 1.71325us
+                self.orion_csr.REG0_TX1.tr_clk_delay_ctrl_1_0 = 2
+                self.orion_csr.REG0_TX0.tr_clk_delay_ctrl_3_2 = 0
+            case 2:
+                # Flash ADC delay of 1.157us
+                self.orion_csr.REG0_TX1.tr_clk_delay_ctrl_1_0 = 0
+                self.orion_csr.REG0_TX0.tr_clk_delay_ctrl_3_2 = 1
+            case 1:
+                # Flash ADC delay of 0.60075us
+                self.orion_csr.REG0_TX1.tr_clk_delay_ctrl_1_0 = 0
+                self.orion_csr.REG0_TX0.tr_clk_delay_ctrl_3_2 = 2
+            case 5:
+                # Default Flash ADC delay of us 2.269us
+                self.orion_csr.REG0_TX1.tr_clk_delay_ctrl_1_0 = 0
+                self.orion_csr.REG0_TX0.tr_clk_delay_ctrl_3_2 = 0
+        self.orion_csr.REG0_TX1.write()
+        self.orion_csr.REG0_TX0.write()
+
     def send_temp_to_adc(self, tempsense_to_adc_input):
         "function to send Ptat or Ztat temperature to ADC input"
         # tempsense_to_adc_input can be "none", "ptat" or "ztat"
