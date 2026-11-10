@@ -1,3 +1,5 @@
+import csv
+import os
 import time
 
 from usb2spi import USB2SPIDriver
@@ -6,7 +8,7 @@ class SPI:
     def __init__(self, port=None, log_en=None):
         self.val = [i for i in range(512)]
         if port is None:
-            self.dev = USB2SPIDriver('COM7')
+            self.dev = USB2SPIDriver('COM6')
         else:
             self.dev = USB2SPIDriver(port)
         time.sleep(1)
@@ -63,7 +65,21 @@ class SPI:
                 print(f'reading csr[{hex(addr)}] @{slv_addr} : {hex(self.val[addr])}')
         return self.val[addr]
 
-    def cfg_gpio(self):        
+    def dump_regs(self, start_addr, end_addr, slv_addr=None, path='./logs/reg_dump.csv'):
+        """Read start_addr..end_addr (inclusive) via self.read() and write to a CSV."""
+        print(f'Dumping registers from {start_addr} to {end_addr} in path {path}')
+        os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+        rows = [(addr, self.read(addr, slv_addr)) for addr in range(start_addr, end_addr + 1)]
+        with open(path, 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['addr_hex', 'addr_hex_short', 'addr_dec',
+                        'data_hex', 'data_hex_short', 'data_dec'])
+            for addr, data in rows:
+                w.writerow([f'0x{addr:03X}', hex(addr), addr,
+                            f'0x{data:02X}', hex(data), data])
+        return rows
+
+    def cfg_gpio(self):
         self.dev.seta(0)
         self.dev.write([0x06,0x0F])
         self.dev.seta(1)
