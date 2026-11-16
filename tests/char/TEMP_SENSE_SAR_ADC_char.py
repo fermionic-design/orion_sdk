@@ -26,16 +26,20 @@ from SPI import *
 
 # ------------------------------ USER SETTINGS ------------------------------
 mode = 'single'          # 'single' or 'sweep'
-chip_name = '55'
+chip_name = '51'
 version = 'v2'
 vdd = 2.7               # V, only used in the file name
-temp = 25               # degC, only used in the file name
+temp = 90               # degC, only used in the file name
 n_points = 1000         # sweep: number of PTAT/ZTAT reading pairs
 eoc_timeout_s = 2.0     # max wait for EOC per conversion
 settle_s = 0.01         # wait after switching PTAT <-> ZTAT before converting
 point_interval_s = 0.5   # sweep: time from one PTAT/ZTAT pair to the next (start to start)
 
 results_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')   # tests/char/logs
+
+# one row per run is appended here (single Excel for all runs)
+summary_xlsx = os.path.join(results_dir, 'temp_sense__sar_adc__run_summary.xlsx')
+run_results = {}   # filled during the run, written to summary_xlsx at the end
 
 
 def fmt_num(x):
@@ -97,7 +101,8 @@ def run_single(orion):
     RF_CTRL_FUNC.send_gp7_to_adc(orion, 0)
     RF_CTRL_FUNC.sel_adc_input(orion, "temp")
 
-    print("PTAT SAR ADC Output: ", get_sar_adc_value(orion)[0])
+    run_results['ptat'] = get_sar_adc_value(orion)[0]
+    print("PTAT SAR ADC Output: ", run_results['ptat'])
 
     # Connect Ztat voltage to GP7 pin via ADC input
     RF_CTRL_FUNC.send_temp_to_adc(orion, "ztat")
@@ -109,7 +114,8 @@ def run_single(orion):
     RF_CTRL_FUNC.send_gp7_to_adc(orion, 0)
     RF_CTRL_FUNC.sel_adc_input(orion, "temp")
 
-    print("ZTAT SAR ADC Output: ", get_sar_adc_value(orion)[0])
+    run_results['ztat'] = get_sar_adc_value(orion)[0]
+    print("ZTAT SAR ADC Output: ", run_results['ztat'])
 
 
 def run_sweep(orion):
@@ -157,18 +163,43 @@ def run_sweep(orion):
     if n_fail:
         print(f'WARNING: {n_fail} conversions had EOC = 0 (blank cells in CSV)')
 
+    # for the run-summary Excel row (from data already in memory)
+    for name, codes in (('ptat', ptat_codes), ('ztat', ztat_codes)):
+        valid = [c for c in codes if c is not None]
+        if valid:
+            run_results[f'{name}_mean'] = round(statistics.mean(valid), 2)
+            run_results[f'{name}_std'] = round(statistics.stdev(valid), 3) if len(valid) > 1 else 0.0
+            run_results[f'{name}_min'] = min(valid)
+            run_results[f'{name}_max'] = max(valid)
+    run_results['eoc_fail'] = n_fail
+    run_results['csv_file'] = file_path
+
 
 # --------------------------------------------------------
 spi = SPI()
 orion = ORION_8G_12G(spi)
 
 try:
+    print('=' * 60)
+    print(f'chip             : {chip_name}')
+    print(f'version          : {version}')
+    print(f'mode             : {mode}')
+    print(f'vdd              : {vdd} V')
+    print(f'temp             : {temp} C')
+    print(f'n_points         : {n_points}  (sweep only)')
+    print(f'point_interval_s : {point_interval_s}  (sweep only)')
+    print(f'settle_s         : {settle_s}')
+    print(f'eoc_timeout_s    : {eoc_timeout_s}')
+    print('=' * 60)
+
     orion.DEVICE_ID.read()
     print('device_id = ' + hex(orion.DEVICE_ID.device_id))
 
     orion.REVISION.read()
     print('major_revision = ' + hex(orion.REVISION.major_rev))
     print('minor_revision = ' + hex(orion.REVISION.minor_rev))
+    run_results['device_id'] = hex(orion.DEVICE_ID.device_id)
+    run_results['revision'] = f'{orion.REVISION.major_rev}.{orion.REVISION.minor_rev}'
 
     if mode == 'single':
         run_single(orion)
@@ -176,6 +207,10 @@ try:
         run_sweep(orion)
     else:
         print(f"Unknown mode '{mode}', use 'single' or 'sweep'")
+
+    print('-' * 60)
+    print(f'Done: chip {chip_name} | {version} | mode {mode} | vdd {vdd} V | temp {temp} C')
+    print('-' * 60)
 
     RF_CTRL_FUNC.send_temp_to_adc(orion, "ptat")
     RF_CTRL_FUNC.send_gp7_to_adc(orion, 1)
@@ -191,5 +226,40 @@ try:
     # temp_degC=(MP1-MZ1)*165/0.79+40
     # print('Temperature in degC: ', temp_degC)
 
+except BaseException as e:
+    run_results['status'] = 'stopped (Ctrl+C)' if isinstance(e, KeyboardInterrupt) else f'error: {e!r}'
+    raise
+
 finally:
     spi.close()
+
+    # ---- append one row for this run to the summary Excel (after the test is finished) ----
+    row = {'date': datetime.now().strftime('%Y-%m-%d'), 'time': datetime.now().strftime('%H:%M:%S'),
+           'chip': chip_name, 'version': version, 'mode': mode, 'vdd': vdd, 'temp': temp,
+           'n_points': n_points if mode == 'sweep' else '',
+           'point_interval_s': point_interval_s if mode == 'sweep' else '',
+           'settle_s': settle_s, 'eoc_timeout_s': eoc_timeout_s, 'status': 'ok'}
+    row.update(run_results)
+    try:
+        from openpyxl import Workbook, load_workbook
+        os.makedirs(results_dir, exist_ok=True)
+        if os.path.exists(summary_xlsx):
+            wb = load_workbook(summary_xlsx)
+            ws = wb.active
+        else:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'runs'
+            ws.append(list(row.keys()))
+        header = [c.value for c in ws[1]]
+        for k in row:                       # new result names get a new column
+            if k not in header:
+                header.append(k)
+                ws.cell(1, len(header), k)
+        ws.append(['' if row.get(h) is None else row.get(h, '') for h in header])
+        wb.save(summary_xlsx)
+        print(f'Run summary row added: {summary_xlsx}')
+    except PermissionError:
+        print(f'Run summary NOT saved - close {summary_xlsx} in Excel. Row: {row}')
+    except Exception as e:
+        print(f'Run summary NOT saved ({e}). Row: {row}')
